@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>謝謝使用奇可智能打卡系統</title>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script> <!-- 🚀 加入 LIFF -->
   <style>
     body {
       font-family: 'Arial', sans-serif;
@@ -135,6 +136,7 @@
     <p id="ipAddress">正在獲取 IP 地址...</p>
     <p id="currentDate">正在獲取現在時刻...</p>
   </div>
+
   <div id="countdownWrapper">
     <div id="countdownBar"></div>
     <div id="countdownText">打卡中，請稍候...</div>
@@ -142,50 +144,93 @@
   </div>
 
   <script>
-    const COMPANY_IPS = ["118.231.136.15"];
-    const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwzdxIwUI-UNgBc4N4wxjw546w0L84zBemKOfgD0JJlja6Zs_5PXH8LN5baktamX-xo8g/exec";
 
+    const COMPANY_IPS = ["118.231.136.15"];
+    const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbzKcRKMhF4MaQioYKHpEiLsJ_HEmCQg9TTbi0_aKKA4sn77mSygN8Cx0uzEfx0POfCM/exec"; 
+    const LIFF_ID = "2008499706-eBayB9Yd";          // 🚀 填入自己的 LIFF ID
+
+    /* ------------ 取得 IP ------------ */
     async function getUserIP() {
       const res = await fetch("https://api.ipify.org?format=json");
       const data = await res.json();
       return data.ip;
     }
 
+    /* ------------ LIFF 初始化 + 取得資料 ------------ */
+    async function initLiff() {
+      await liff.init({ liffId: LIFF_ID });
+
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+
+      const profile = await liff.getProfile();
+
+      return {
+        userId: profile.userId,
+        displayName: profile.displayName
+      };
+    }
+
+    /* ------------ 顯示畫面 ------------ */
     async function displayCurrentInfo() {
       const date = new Date();
-      document.getElementById("currentDate").textContent = "現在時刻: " + date.toLocaleString("zh-TW");
+      document.getElementById("currentDate").textContent =
+        "現在時刻: " + date.toLocaleString("zh-TW");
 
       try {
         const ip = await getUserIP();
         if (COMPANY_IPS.includes(ip)) {
-          document.getElementById("ipAddress").innerHTML = '<span class="specialIp">已連接公司網路</span>';
+          document.getElementById("ipAddress").innerHTML =
+            '<span class="specialIp">已連接公司網路</span>';
         } else {
-          document.getElementById("ipAddress").innerHTML = '<span class="unknownConnection">不明連線</span>';
+          document.getElementById("ipAddress").innerHTML =
+            '<span class="unknownConnection">不明連線</span>';
         }
         return ip;
-      } catch (err) {
+      } catch {
         document.getElementById("ipAddress").textContent = "無法獲取 IP 地址";
         return null;
       }
     }
 
-    async function performClockIn(ip) {
+    /* ------------ 呼叫後端 GAS ------------ */
+    async function performClockIn(ip, userId, displayName) {
+      const body = {
+        ip,
+        userId,
+        displayName,
+        timestamp: new Date().toLocaleString("zh-TW")
+      };
+
       const res = await fetch(API_ENDPOINT, {
         method: "POST",
-        body: JSON.stringify({ ip }),
+        body: JSON.stringify(body),
+        headers: { "Content-Type": "application/json" }
       });
+
       return await res.text();
     }
 
+    /* ------------ 主流程 ------------ */
     window.onload = async () => {
+
+      // 🚀 LIFF 取得 userId、displayName
+      const lineUser = await initLiff();
+
+      if (!lineUser) return;
+
+      const { userId, displayName } = lineUser;
+
       const ip = await displayCurrentInfo();
       if (!ip) return;
 
+      // 倒數動畫（略）
       const bar = document.getElementById("countdownBar");
       const text = document.getElementById("countdownText");
       const resultEl = document.getElementById("resultText");
 
-      // 倒數時間控制
       let duration = 3;
       let width = 100;
       const countdown = setInterval(() => {
@@ -193,16 +238,14 @@
         bar.style.width = width + "%";
       }, 1000);
 
-      const clockInPromise = performClockIn(ip);
+      const clockInPromise = performClockIn(ip, userId, displayName);
 
-      // 倒數結束時開始動畫等待
       setTimeout(() => {
         clearInterval(countdown);
         bar.style.display = "none";
         text.classList.add("pulsingText");
       }, duration * 1000);
 
-      // 等待伺服器回應
       clockInPromise.then(responseText => {
         text.classList.remove("pulsingText");
         text.style.display = "none";
@@ -217,33 +260,32 @@
           Swal.fire({
             icon: 'success',
             title: '🎉 打卡成功！',
-            html: `<strong>打卡時間：</strong> ${nowTime}`,
+            html: `<strong>時間：</strong> ${nowTime}<br>
+                   <strong>姓名：</strong> ${displayName}<br>
+                   <strong>ID：</strong> ${userId}`,
             showConfirmButton: false,
-            allowOutsideClick: true
           });
         } else if (responseText.includes("成功")) {
-          resultEl.textContent = "⚠ 連線錯誤，切換網路再試";
-          resultEl.style.color = "#e67e22";
           Swal.fire({
             icon: 'warning',
             title: '⚠ 非公司網路',
-            html: `<div>◎ 異地打卡請忽略 ◎</div>`,
-            showConfirmButton: false,
-            allowOutsideClick: true
+            html: `異地打卡紀錄已上傳<br>
+                   <strong>${displayName}</strong>`,
+            showConfirmButton: false
           });
         } else {
-          resultEl.textContent = "😥 關閉視窗，重新打卡。";
-          resultEl.style.color = "red";
           Swal.fire({
             icon: 'error',
-            title: '😥 操作錯誤',
-            html: '未簽到或重複簽到',
-            showConfirmButton: false,
-            allowOutsideClick: true
+            title: '😥 打卡錯誤',
+            html: '請重新打卡',
+            showConfirmButton: false
           });
         }
       });
     };
+  </script>
+</body>
+</html>
   </script>
 </body>
 </html>
