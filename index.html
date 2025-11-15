@@ -2,36 +2,66 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<title>GAS 測試</title>
+<title>公司打卡系統</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-<h2>測試 GAS doPost</h2>
-<button onclick="testDoPost()">送出測試打卡</button>
+<h2 id="profile">取得 LINE 使用者資料中...</h2>
+<button onclick="send('上班')">🟢 上班</button>
+<button onclick="send('下班')">🔴 下班</button>
+<div id="status"></div>
+<div id="records"></div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzyK_ivAcJ3t2K0Wrf-4Na3gW9Kftx7rNOkaiAA1NryA5-kJZJvKG11871p-Bk4hDgb/exec"; // 替換成你的 GAS Web App URL
+const LIFF_ID = "2008499706-eBayB9Yd"; // 你的 LIFF ID
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyAFOQeiCcVqsvccDWCvc37UVX-mUtkqEYdzTayDq5n7M1uqOK7fT9AUqRZRcHQkbM/exec";
 
-async function testDoPost() {
+let lineUserId = "";
+let lineUserName = "";
+
+async function initLIFF(){
+  await liff.init({liffId: LIFF_ID});
+  if(!liff.isLoggedIn()){ liff.login(); return; }
+  const profile = await liff.getProfile();
+  lineUserId = profile.userId;
+  lineUserName = profile.displayName;
+  document.getElementById("profile").innerText = `${lineUserName} 您好`;
+  loadRecords();
+}
+
+async function send(action){
+  document.getElementById("status").innerText = "⏳ 請求中...";
   try {
     const res = await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lineId: "test123",
-        userName: "測試用戶",
-        message: "上班"
-      })
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({lineId: lineUserId, userName: lineUserName, message: action})
     });
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    console.log("收到回應：", data);
-    alert("收到回應，請打開 Console 查看細節");
-  } catch(err) {
-    console.error("❌ 請求錯誤：", err);
-    alert("請求錯誤，請打開 Console 查看細節");
+    document.getElementById("status").innerText = data.status==="success"?`✅ ${data.message}\n${data.ipStatus}`:`❌ ${data.message}`;
+    loadRecords();
+  } catch(err){
+    document.getElementById("status").innerText = "❌ 請求錯誤：" + err.message;
   }
 }
+
+async function loadRecords(){
+  try{
+    const res = await fetch(GAS_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({lineId: lineUserId, userName: lineUserName, message:"查詢"})
+    });
+    const data = await res.json();
+    if(data.status==="success"){
+      document.getElementById("records").innerHTML = data.records.join("<br>");
+    }
+  }catch(err){
+    document.getElementById("records").innerText = "❌ 請求錯誤：" + err.message;
+  }
+}
+
+initLIFF();
 </script>
 </body>
 </html>
