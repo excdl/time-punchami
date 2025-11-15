@@ -1,150 +1,72 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>公司打卡系統 (LIFF)</title>
-
-  <!-- LIFF SDK -->
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
-  <style>
-    body {
-      font-family: "Microsoft JhengHei", sans-serif;
-      background: #f6f7fb;
-      margin: 0;
-      padding: 20px;
-      text-align: center;
-    }
-
-    .container {
-      max-width: 420px;
-      margin: auto;
-      padding: 20px;
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-    }
-
-    h2 { color: #333; }
-    button {
-      width: 100%;
-      padding: 15px;
-      font-size: 18px;
-      margin: 10px 0;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      color: white;
-      font-weight: bold;
-    }
-
-    .btn-start { background: #28a745; }
-    .btn-end { background: #dc3545; }
-    .btn-search { background: #007bff; }
-
-    #status { margin-top: 20px; white-space: pre-wrap; color: #444; padding: 10px; }
-    #loading { display: none; margin-bottom: 10px; font-size: 16px; color: #555; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公司打卡系統 (LIFF)</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+body{font-family:"Microsoft JhengHei",sans-serif;background:#f6f7fb;padding:20px;text-align:center;}
+.container{max-width:420px;margin:auto;padding:20px;background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.1);}
+button{width:100%;padding:15px;margin:10px 0;border-radius:10px;border:none;font-size:18px;color:white;font-weight:bold;cursor:pointer;}
+.btn-start{background:#28a745;}
+.btn-end{background:#dc3545;}
+.btn-search{background:#007bff;}
+#status{margin-top:20px;white-space:pre-wrap;}
+</style>
 </head>
-
 <body>
-
 <div class="container">
-  <h2>公司打卡系統</h2>
-
-  <div id="loading">⏳ 資料載入中...</div>
-  <div id="profile">正在取得 LINE 使用者資料...</div>
-
-  <button class="btn-start" onclick="send('上班')">🟢 上班</button>
-  <button class="btn-end" onclick="send('下班')">🔴 下班</button>
-  <button class="btn-search" onclick="send('查詢')">📋 查詢今日紀錄</button>
-
-  <div id="status"></div>
+<h2>公司打卡系統</h2>
+<div id="profile">取得 LINE 使用者資料中...</div>
+<button class="btn-start" onclick="send('上班')">🟢 上班</button>
+<button class="btn-end" onclick="send('下班')">🔴 下班</button>
+<button class="btn-search" onclick="send('查詢')">📋 查詢今日紀錄</button>
+<div id="status"></div>
 </div>
 
 <script>
 const LIFF_ID = "2008499706-eBayB9Yd"; // ← 替換你的 LIFF ID
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwnLLV7TzhAIyxjxMJvuFVxY5YljPDyW-9tIc60jK2-dlv7UcaNORC49k0M88w-mS8w/exec"; // ← 替換你的 GAS URL
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyZUrwPFtQHwqGwPAvKJsfFJ7J2c4pYVxsmkJcH8S8eh3kjhWUt5RoXGspMPpiysQgg/exec"; // ← 替換 Web App URL
 
 let lineUserId = "";
 let lineUserName = "";
 
-// --------------------
 // 初始化 LIFF
-// --------------------
-async function initLIFF() {
-  try {
-    await liff.init({ liffId: LIFF_ID });
-
-    if (!liff.isLoggedIn()) {
-      liff.login();
-      return;
-    }
-
+async function initLIFF(){
+  try{
+    await liff.init({liffId:LIFF_ID});
+    if(!liff.isLoggedIn()){liff.login(); return;}
     const profile = await liff.getProfile();
     lineUserId = profile.userId;
     lineUserName = profile.displayName;
-
-    document.getElementById("profile").innerText =
-      `👤 使用者：${lineUserName}\n🔑 userId：${lineUserId}`;
-  } catch (e) {
-    document.getElementById("profile").innerText =
-      "❌ LIFF 初始化失敗：\n" + e.message;
+    document.getElementById("profile").innerText = `👤 ${lineUserName}\n🔑 ${lineUserId}`;
+  }catch(e){
+    document.getElementById("profile").innerText = "❌ LIFF 初始化失敗："+e.message;
   }
 }
-
 initLIFF();
 
-// --------------------
-// 呼叫 GAS 打卡/查詢
-// --------------------
-async function send(action) {
-  if (!lineUserId) {
-    alert("尚未取得 LINE userId，請重新整理或檢查 LIFF 設定");
-    return;
-  }
-
-  document.getElementById("loading").style.display = "block";
-  document.getElementById("status").innerText = "";
-
-  const payload = { lineId: lineUserId, userName: lineUserName, message: action };
-
-  try {
-    const res = await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+// 呼叫 GAS 打卡
+async function send(action){
+  if(!lineUserId){alert("尚未取得 LINE userId"); return;}
+  document.getElementById("status").innerText = "⏳ 請求中...";
+  try{
+    const res = await fetch(GAS_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({lineId:lineUserId,userName:lineUserName,message:action})
     });
-
-    const result = await res.json();
-
-    if(result.status === "success") {
-      if(result.type === "query") {
-        document.getElementById("status").innerText =
-          "📋 今日打卡紀錄:\n" + result.records.join("\n");
-      } else if(result.type === "punch") {
-        document.getElementById("status").innerText =
-          `✅ ${result.action} 成功\n🕒 時間: ${result.time}`;
-      } else {
-        document.getElementById("status").innerText =
-          JSON.stringify(result, null, 2);
-      }
-    } else {
-      document.getElementById("status").innerText =
-        "❌ 錯誤:\n" + result.message;
-    }
-  } catch (err) {
-    document.getElementById("status").innerText =
-      "❌ 請求錯誤:\n" + err.message;
+    const data = await res.json();
+    document.getElementById("status").innerText = "📩 回應：\n"+JSON.stringify(data,null,2);
+  }catch(err){
+    document.getElementById("status").innerText = "❌ 請求錯誤："+err.message;
   }
-
-  document.getElementById("loading").style.display = "none";
 }
 </script>
-
 </body>
 </html>
+
 
 
 
