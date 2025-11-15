@@ -2,62 +2,50 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<title>公司打卡系統</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LIFF GAS 測試</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+body{font-family:"Microsoft JhengHei",sans-serif;text-align:center;padding:20px;}
+button{padding:15px 30px;font-size:18px;margin:10px;cursor:pointer;}
+#status{margin-top:20px;white-space:pre-wrap;}
+</style>
 </head>
 <body>
-<h2 id="profile">取得 LINE 使用者資料中...</h2>
-<button onclick="send('上班')">🟢 上班</button>
-<button onclick="send('下班')">🔴 下班</button>
+<h2>LIFF GAS 測試</h2>
+<div id="profile">取得 LINE 資料中...</div>
+<button onclick="testFetch()">測試 GAS 連線</button>
 <div id="status"></div>
-<div id="records"></div>
 
 <script>
-const LIFF_ID = "2008499706-eBayB9Yd"; // 你的 LIFF ID
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyAFOQeiCcVqsvccDWCvc37UVX-mUtkqEYdzTayDq5n7M1uqOK7fT9AUqRZRcHQkbM/exec";
+const LIFF_ID = "2008499706-eBayB9Yd"; // ← LIFF ID
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw9FozMxfpZ_wQdnE94cY0fDZPLQVoiE2yLDYLOymAv2VErzX49HMaf4MnHdUenL6lN/exec"; // ← 最新部署 Web App URL
 
-let lineUserId = "";
 let lineUserName = "";
-
-async function initLIFF(){
-  await liff.init({liffId: LIFF_ID});
-  if(!liff.isLoggedIn()){ liff.login(); return; }
-  const profile = await liff.getProfile();
-  lineUserId = profile.userId;
-  lineUserName = profile.displayName;
-  document.getElementById("profile").innerText = `${lineUserName} 您好`;
-  loadRecords();
-}
-
-async function send(action){
-  document.getElementById("status").innerText = "⏳ 請求中...";
+async function initLIFF() {
   try {
-    const res = await fetch(GAS_URL, {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({lineId: lineUserId, userName: lineUserName, message: action})
-    });
-    const data = await res.json();
-    document.getElementById("status").innerText = data.status==="success"?`✅ ${data.message}\n${data.ipStatus}`:`❌ ${data.message}`;
-    loadRecords();
-  } catch(err){
-    document.getElementById("status").innerText = "❌ 請求錯誤：" + err.message;
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) liff.login();
+    const profile = await liff.getProfile();
+    lineUserName = profile.displayName;
+    document.getElementById("profile").innerText = `👤 ${lineUserName} 您好`;
+  } catch(e) {
+    document.getElementById("profile").innerText = "❌ LIFF 初始化失敗：" + e.message;
   }
 }
 
-async function loadRecords(){
-  try{
-    const res = await fetch(GAS_URL,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({lineId: lineUserId, userName: lineUserName, message:"查詢"})
+async function testFetch() {
+  document.getElementById("status").innerText = "⏳ 測試中...";
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({lineId:"test123", userName:lineUserName, message:"測試"})
     });
     const data = await res.json();
-    if(data.status==="success"){
-      document.getElementById("records").innerHTML = data.records.join("<br>");
-    }
-  }catch(err){
-    document.getElementById("records").innerText = "❌ 請求錯誤：" + err.message;
+    document.getElementById("status").innerText = "✅ 取得回應：\n" + JSON.stringify(data,null,2);
+  } catch(err) {
+    document.getElementById("status").innerText = "❌ 請求失敗：" + err.message;
   }
 }
 
