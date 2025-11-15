@@ -3,54 +3,156 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LIFF GAS 測試</title>
+<title>公司打卡系統 (LIFF)</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-body{font-family:"Microsoft JhengHei",sans-serif;text-align:center;padding:20px;}
-button{padding:15px 30px;font-size:18px;margin:10px;cursor:pointer;}
+body{font-family:"Microsoft JhengHei",sans-serif;background:#f6f7fb;padding:20px;text-align:center;}
+.container{max-width:420px;margin:auto;padding:20px;background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.1);}
+button{width:100%;padding:15px;margin:10px 0;border-radius:10px;border:none;font-size:18px;color:white;font-weight:bold;cursor:pointer;}
+.btn-start{background:#28a745;}
+.btn-end{background:#dc3545;}
 #status{margin-top:20px;white-space:pre-wrap;}
+#records{margin-top:10px;text-align:left;background:#f0f0f0;padding:10px;border-radius:8px;}
+.green{color:green;font-weight:bold;}
+.red{color:red;font-weight:bold;}
 </style>
 </head>
 <body>
-<h2>LIFF GAS 測試</h2>
-<div id="profile">取得 LINE 資料中...</div>
-<button onclick="testFetch()">測試 GAS 連線</button>
+<div class="container">
+<h2>公司打卡系統</h2>
+<div id="profile">取得 LINE 使用者資料中...</div>
+<div id="ip">檢查網路連線...</div>
+<button class="btn-start" onclick="send('上班')">🟢 上班</button>
+<button class="btn-end" onclick="send('下班')">🔴 下班</button>
 <div id="status"></div>
+<h3>今日打卡紀錄</h3>
+<div id="records">載入中...</div>
+</div>
 
 <script>
-const LIFF_ID = "2008499706-eBayB9Yd"; // ← LIFF ID
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw84I9NurvmIXE0kCpx8KgAuWPvBVjU9mWYR9bnieR5CaV2VeE5rsadSp0Ok0KurBvh/exec"; // ← 最新部署 Web App URL
+const LIFF_ID = "2008499706-eBayB9Yd"; // ← 替換你的 LIFF ID
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw84I9NurvmIXE0kCpx8KgAuWPvBVjU9mWYR9bnieR5CaV2VeE5rsadSp0Ok0KurBvh/exec"; // ← 替換成你的 Web App URL
+const allowedIps = ["114.34.60.48"]; // 公司外部固定 IP
 
+let lineUserId = "";
 let lineUserName = "";
+
+// 預設上班/下班時間 (24小時制)
+const defaultTimes = {
+  上班: "09:00",
+  下班: "18:00"
+};
+
+// 初始化 LIFF
 async function initLIFF() {
   try {
     await liff.init({ liffId: LIFF_ID });
-    if (!liff.isLoggedIn()) liff.login();
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
     const profile = await liff.getProfile();
+    lineUserId = profile.userId;
     lineUserName = profile.displayName;
     document.getElementById("profile").innerText = `👤 ${lineUserName} 您好`;
-  } catch(e) {
+    await getIPStatus();
+    loadRecords();
+  } catch (e) {
     document.getElementById("profile").innerText = "❌ LIFF 初始化失敗：" + e.message;
   }
 }
 
-async function testFetch() {
-  document.getElementById("status").innerText = "⏳ 測試中...";
+// 檢查 IP 狀態
+async function getIPStatus() {
+  const ipDisplay = document.getElementById("ip");
   try {
-    const res = await fetch(GAS_URL, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({lineId:"test123", userName:lineUserName, message:"測試"})
-    });
+    const res = await fetch("https://api.ipify.org?format=json");
     const data = await res.json();
-    document.getElementById("status").innerText = "✅ 取得回應：\n" + JSON.stringify(data,null,2);
-  } catch(err) {
-    document.getElementById("status").innerText = "❌ 請求失敗：" + err.message;
+    const ip = data.ip;
+    if (allowedIps.includes(ip)) {
+      ipDisplay.innerText = "已連線公司網路";
+      ipDisplay.className = "green";
+    } else {
+      ipDisplay.innerText = "不明連線";
+      ipDisplay.className = "red";
+    }
+  } catch {
+    ipDisplay.innerText = "不明連線";
+    ipDisplay.className = "red";
   }
 }
 
+// 呼叫 GAS 打卡
+async function send(action) {
+  if (!lineUserId) {
+    alert("尚未取得 LINE 使用者資料");
+    return;
+  }
+  document.getElementById("status").innerText = "⏳ 請求中...";
+  try {
+    const ipStatus = document.getElementById("ip").innerText;
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineId: lineUserId, userName: lineUserName, message: action, ipStatus })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    document.getElementById("status").innerText = "📩 回應：\n" + JSON.stringify(data,null,2);
+    loadRecords();
+  } catch(err) {
+    document.getElementById("status").innerText = "❌ 請求錯誤：" + err.message;
+  }
+}
+
+// 載入今日紀錄並計算時間差提醒
+async function loadRecords() {
+  if (!lineUserId) return;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lineId: lineUserId, userName: lineUserName, message: "查詢" })
+    });
+    const data = await res.json();
+    if (data.status === "success" && data.type === "query") {
+      const records = data.records.map(r => addTimeReminder(r));
+      document.getElementById("records").innerHTML = records.join("<br>");
+    } else {
+      document.getElementById("records").innerText = "今日無打卡紀錄";
+    }
+  } catch(err) {
+    document.getElementById("records").innerText = "❌ 請求錯誤：" + err.message;
+  }
+}
+
+// 計算與預設時間差
+function addTimeReminder(record) {
+  const parts = record.split(" : "); // [action, time]
+  if (parts.length !== 2) return record;
+  const action = parts[0];
+  const timeStr = parts[1];
+  const defaultTime = defaultTimes[action];
+  if (!defaultTime) return record;
+
+  const [h1,m1] = defaultTime.split(":").map(Number);
+  const [h2,m2] = timeStr.split(":").map(Number);
+
+  const diffMinutes = (h2*60 + m2) - (h1*60 + m1);
+  let reminder = "";
+  if (diffMinutes > 0) reminder = `（晚了 ${diffMinutes} 分鐘）`;
+  else if (diffMinutes < 0) reminder = `（提前 ${-diffMinutes} 分鐘）`;
+  else reminder = `（準時）`;
+
+  return `${record} <span class="green">${reminder}</span>`;
+}
+
+// 初始化
 initLIFF();
 </script>
 </body>
 </html>
+
+
+
 
