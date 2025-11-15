@@ -29,41 +29,37 @@ button{width:100%;padding:15px;margin:10px 0;border-radius:10px;border:none;font
 
 <script>
 const LIFF_ID = "2008499706-eBayB9Yd"; // ← 替換你的 LIFF ID
-const GAS_URL = "https://script.google.com/macros/s/AKfycbx10PNpgzt1m5HBPaFKpvb0exgSlGbo-sxHZVYzSW9JeuqN9xORn3XSK3qhHIHNd2iO/exec"; // ← 替換成你剛部署的 Web App URL
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyFysKkCfap7fWlxo5HUSwoXehNZrxVHBxADiCLd1oFxpdZTYP9_SYSnB_1xuHR9u8q/exec"; // ← 替換你的 GAS Web App URL
 
 let lineUserId = "";
 let lineUserName = "";
 
 // 預設上班/下班時間 (24小時制)
-const defaultTimes = {
-  上班: "09:00",
-  下班: "18:00"
-};
+const defaultTimes = { 上班: "09:00", 下班: "18:00" };
 
 // 初始化 LIFF
 async function initLIFF() {
   try {
     await liff.init({ liffId: LIFF_ID });
-    if (!liff.isLoggedIn()) {
-      liff.login();
-      return;
-    }
+    if (!liff.isLoggedIn()) liff.login();
+
     const profile = await liff.getProfile();
     lineUserId = profile.userId;
     lineUserName = profile.displayName;
-    document.getElementById("profile").innerText = `👤 ${lineUserName}\n🔑 ${lineUserId}`;
+
+    // 首頁只顯示姓名 + 您好
+    document.getElementById("profile").innerText = `👤 ${lineUserName}，您好`;
+
     loadRecords();
-  } catch (e) {
+  } catch(e) {
     document.getElementById("profile").innerText = "❌ LIFF 初始化失敗：" + e.message;
   }
 }
 
-// 呼叫 GAS 打卡
+// 點擊上班/下班才寫入試算表
 async function send(action) {
-  if (!lineUserId) {
-    alert("尚未取得 LINE userId");
-    return;
-  }
+  if (!lineUserId) return;
+
   document.getElementById("status").innerText = "⏳ 請求中...";
   try {
     const res = await fetch(GAS_URL, {
@@ -72,10 +68,10 @@ async function send(action) {
       body: JSON.stringify({ lineId: lineUserId, userName: lineUserName, message: action })
     });
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     document.getElementById("status").innerText = "📩 回應：\n" + JSON.stringify(data,null,2);
-    loadRecords();
+
+    loadRecords(); // 更新今日紀錄
   } catch(err) {
     document.getElementById("status").innerText = "❌ 請求錯誤：" + err.message;
   }
@@ -104,7 +100,7 @@ async function loadRecords() {
 
 // 計算與預設時間差
 function addTimeReminder(record) {
-  const parts = record.split(" : "); // [action, time]
+  const parts = record.split(" : ");
   if (parts.length !== 2) return record;
   const action = parts[0];
   const timeStr = parts[1];
@@ -113,18 +109,20 @@ function addTimeReminder(record) {
 
   const [h1,m1] = defaultTime.split(":").map(Number);
   const [h2,m2] = timeStr.split(":").map(Number);
-
   const diffMinutes = (h2*60 + m2) - (h1*60 + m1);
-  let reminder = "";
-  if (diffMinutes > 0) reminder = `（晚了 ${diffMinutes} 分鐘）`;
-  else if (diffMinutes < 0) reminder = `（提前 ${-diffMinutes} 分鐘）`;
-  else reminder = `（準時）`;
+
+  let reminder = diffMinutes > 0 ? `（晚了 ${diffMinutes} 分鐘）`
+                 : diffMinutes < 0 ? `（提前 ${-diffMinutes} 分鐘）`
+                 : `（準時）`;
 
   return `${record} <span class="smart-reminder">${reminder}</span>`;
 }
+
+initLIFF();
 </script>
 </body>
 </html>
+
 
 
 
