@@ -27,8 +27,10 @@ async function main() {
   document.getElementById("checkinBtn").onclick = checkin;
 }
 
-// ====== 進行打卡 ======
 async function checkin() {
+  alert("checkin() 有執行");
+  console.log("checkin() 被執行了！");
+
   const profile = await liff.getProfile();
   const ip = await getIP();
   
@@ -36,7 +38,6 @@ async function checkin() {
   const loginDate = now.toLocaleDateString("zh-TW");
   const loginTime = now.toLocaleTimeString("zh-TW");
 
-  // 組成傳送資料
   const payload = {
     userId: profile.userId,
     displayName: profile.displayName,
@@ -45,21 +46,19 @@ async function checkin() {
     ip: ip
   };
 
-  // ====== 傳到 Google Apps Script ======
   fetch("https://script.google.com/macros/s/AKfycbyLQOC6SC-pveFLB3PTMb3l5dEm3aD-nC-v2TvPrqZAotBPFONfqrWFqt1yopcevyJ3/exec", {
-     method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(payload)
-})
-.then(res => res.text())
-.then(text => {
-  alert("GAS 回應：" + text);
-  console.log("GAS response:", text);
-})
-.catch(err => {
-  alert("錯誤：" + err);
-  console.error(err);
-});
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  })
+  .then(res => res.text())
+  .then(text => {
+    alert("GAS 回應：" + text);
+  })
+  .catch(err => {
+    alert("錯誤：" + err);
+  });
+}
 
 
 main();
