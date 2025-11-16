@@ -3,15 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Line 打卡系統</title>
+  <title>LIFF 打卡系統</title>
   <script src="https://static.line-scdn.net/liff/2.22/sdk.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align:center; padding:20px; }
+    p { margin:10px 0; }
+    #checkinBtn { padding:10px 20px; font-size:16px; cursor:pointer; }
+  </style>
 </head>
 <body>
-  <h2>打卡系統</h2>
+  <h2>LIFF 打卡系統</h2>
+
+  <p>IP: <span id="ipAddress">取得中...</span></p>
+  <p>時間: <span id="currentDate">取得中...</span></p>
+  <p>使用者: <span id="userName">取得中...</span></p>
+
   <button id="checkinBtn">立即打卡</button>
 
   <script>
     let userProfile = null;
+    let userIP = null;
+    let nowTime = null;
 
     // 初始化 LIFF
     async function initLiff() {
@@ -19,17 +31,25 @@
         await liff.init({ liffId: "2008499706-eBayB9Yd" });
         console.log("LIFF 初始化成功");
 
-        // 確認使用者已登入
         if (!liff.isLoggedIn()) {
           liff.login();
           return;
         }
 
-        // 取得使用者資訊
         userProfile = await liff.getProfile();
-        console.log("使用者資料:", userProfile);
+        document.getElementById("userName").textContent = userProfile.displayName;
+
+        // 取得 IP
+        userIP = await getUserIP();
+        document.getElementById("ipAddress").textContent = userIP;
+
+        // 顯示當前時間
+        nowTime = new Date();
+        document.getElementById("currentDate").textContent = nowTime.toLocaleString("zh-TW");
+
       } catch (err) {
-        console.error("LIFF 初始化錯誤:", err);
+        console.error("初始化錯誤:", err);
+        alert("LIFF 初始化或取得資料失敗，請確認在 LINE app 中開啟頁面。");
       }
     }
 
@@ -40,32 +60,30 @@
         const data = await res.json();
         return data.ip;
       } catch (err) {
-        console.error("無法取得 IP:", err);
+        console.error("取得 IP 失敗:", err);
         return "無法取得 IP";
       }
     }
 
     // 點擊打卡
     async function checkin() {
-      if (!userProfile) {
-        alert("使用者資訊尚未取得，請重新整理頁面。");
+      if (!userProfile || !userIP || !nowTime) {
+        alert("資料尚未準備好，請稍後再試。");
         return;
       }
 
-      const ip = await getUserIP();
-      const now = new Date();
       const payload = {
         userId: userProfile.userId,
         displayName: userProfile.displayName,
-        date: now.toLocaleDateString("zh-TW"),
-        time: now.toLocaleTimeString("zh-TW"),
-        ip: ip
+        date: nowTime.toLocaleDateString("zh-TW"),
+        time: nowTime.toLocaleTimeString("zh-TW"),
+        ip: userIP
       };
 
       console.log("打卡資料:", payload);
 
       try {
-        const res = await fetch("https://script.google.com/macros/s/AKfycbxzxN2Cn9C_RDNWqnQHnL2prnMHpFQ05vfaLohRH3VYq2chny8kDNba5hhYskZoCMnz/exec", {
+        const res = await fetch("https://script.google.com/macros/s/AKfycbyizEvSo2QJSMWmYzAt8RVqy6tji2XebjfwrTZcC3H8f9-FJZ8p48_j7haVQOUGosYA/exec", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -80,14 +98,12 @@
       }
     }
 
-    // 綁定按鈕
     document.getElementById("checkinBtn").onclick = checkin;
-
-    // 執行初始化
     window.onload = initLiff;
   </script>
 </body>
 </html>
+
 
 
 
