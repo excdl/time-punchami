@@ -3,82 +3,118 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LIFF 打卡系統</title>
+  <title>LINE 打卡系統</title>
   <script src="https://static.line-scdn.net/liff/2.22/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f4f4f9; }
+    h2 { color: #2c3e50; }
+    button { padding: 10px 20px; font-size: 18px; border-radius: 6px; background: #00c300; color: white; border: none; cursor: pointer; }
+    button:hover { background: #009900; }
+    #info { margin-top: 20px; }
+    #info p { margin: 5px 0; }
+    #countdownWrapper { width: 100%; height: 25px; background: #ddd; border-radius: 12px; margin-top: 20px; overflow: hidden; display: none; }
+    #countdownBar { height: 100%; background: #3498db; width: 100%; transition: width 1s linear; }
+  </style>
 </head>
 <body>
-  <h2>LIFF 打卡系統</h2>
-  <p id="status">資料尚未準備好...</p>
-  <button id="checkinBtn" disabled>立即打卡</button>
 
-  <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxf8xs3cX6gSxtdYyWTYbCIxanWbD-V0xxiN12EO7mE7oOj2y_aiBGS2exSdTUavmXV/exec"; // 改成你的 GAS Web App URL
+<h2>LINE 打卡系統</h2>
+<button id="checkinBtn">立即打卡</button>
 
-    async function getUserIP() {
-      try {
-        const res = await fetch("https://api.ipify.org?format=json");
-        const data = await res.json();
-        return data.ip;
-      } catch (err) {
-        console.error("抓取 IP 失敗", err);
-        return "未知";
-      }
+<div id="info">
+  <p>使用者: <span id="userDisplay">取得中...</span></p>
+  <p>IP: <span id="ipDisplay">取得中...</span></p>
+  <p>時間: <span id="timeDisplay">取得中...</span></p>
+</div>
+
+<div id="countdownWrapper">
+  <div id="countdownBar"></div>
+</div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxH3gcY1X9AixazWmjXvsWKvVrZmHkDQdnr8MA2QRz_H0WcbFYdwqg5LTJ9XT8Zzv0P/exec"; // 改成你的 GAS 網址
+const LIFF_ID = "2008504718-nmXP0WRV"; // 改成你的 LIFF ID
+
+async function getUserIP() {
+  try {
+    const res = await fetch("https://api.ipify.org?format=json");
+    const data = await res.json();
+    return data.ip;
+  } catch {
+    return "未知IP";
+  }
+}
+
+async function clockIn() {
+  const countdownWrapper = document.getElementById("countdownWrapper");
+  const countdownBar = document.getElementById("countdownBar");
+
+  try {
+    await liff.init({ liffId: LIFF_ID });
+
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
     }
 
-    async function main() {
-      try {
-        // 初始化 LIFF
-        await liff.init({ liffId: "2008504718-nmXP0WRV" });
-        
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
-        }
+    const profile = await liff.getProfile();
+    const userId = profile.userId;
+    const userName = profile.displayName;
+    document.getElementById("userDisplay").textContent = userName;
 
-        // 抓使用者資料
-        const profile = await liff.getProfile();
-        const ip = await getUserIP();
-        const now = new Date();
+    const ip = await getUserIP();
+    document.getElementById("ipDisplay").textContent = ip;
 
-        // 更新狀態
-        document.getElementById("status").textContent =
-          `使用者: ${profile.displayName} (${profile.userId})\nIP: ${ip}\n時間: ${now.toLocaleString()}`;
-        
-        // 啟用打卡按鈕
-        const btn = document.getElementById("checkinBtn");
-        btn.disabled = false;
+    const now = new Date();
+    document.getElementById("timeDisplay").textContent = now.toLocaleString("zh-TW");
 
-        btn.onclick = async () => {
-          const payload = {
-            userId: profile.userId,
-            displayName: profile.displayName,
-            date: now.toLocaleDateString(),
-            time: now.toLocaleTimeString(),
-            ip: ip
-          };
+    // 倒數動畫
+    countdownWrapper.style.display = "block";
+    let width = 100;
+    let duration = 3; // 秒
+    const interval = setInterval(() => {
+      width -= 100 / duration;
+      countdownBar.style.width = width + "%";
+    }, 1000);
 
-          try {
-            const res = await fetch(GAS_URL, {
-              method: "POST",
-              body: JSON.stringify(payload),
-              headers: { "Content-Type": "application/json" }
-            });
-            const result = await res.json();
-            alert("打卡結果: " + result.message);
-          } catch (err) {
-            console.error("送出資料失敗", err);
-            alert("打卡失敗，請稍後再試");
-          }
-        };
+    await new Promise(res => setTimeout(res, duration * 1000));
+    clearInterval(interval);
+    countdownWrapper.style.display = "none";
+    countdownBar.style.width = "100%";
 
-      } catch (err) {
-        console.error("LIFF 初始化或抓資料失敗", err);
-        document.getElementById("status").textContent = "資料尚未準備好，請稍後再試";
-      }
+    // 傳到 GAS
+    const payload = { userId, userName, date: now.toLocaleDateString("zh-TW"), time: now.toLocaleTimeString("zh-TW"), ip };
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+
+    // 成功提示
+    if (text.includes("寫入成功")) {
+      Swal.fire({
+        icon: 'success',
+        title: '打卡成功！',
+        html: `<p>使用者: ${userName}</p><p>時間: ${now.toLocaleString("zh-TW")}</p><p>IP: ${ip}</p>`,
+        confirmButtonText: 'OK'
+      });
+    } else if (text.includes("已有")) {
+      Swal.fire({ icon: 'warning', title: '重複打卡', text: '此使用者已打過卡' });
+    } else {
+      Swal.fire({ icon: 'error', title: '打卡失敗', text: text });
     }
 
-    main();
-  </script>
+  } catch (err) {
+    console.error(err);
+    Swal.fire({ icon: 'error', title: '錯誤', text: '資料尚未準備好，請稍後再試' });
+  }
+}
+
+document.getElementById("checkinBtn").onclick = clockIn;
+</script>
+
 </body>
 </html>
 
