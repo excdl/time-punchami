@@ -5,101 +5,79 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LIFF 打卡系統</title>
   <script src="https://static.line-scdn.net/liff/2.22/sdk.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; text-align:center; padding:20px; }
-    p { margin:10px 0; }
-    #checkinBtn { padding:10px 20px; font-size:16px; cursor:pointer; }
-  </style>
 </head>
 <body>
   <h2>LIFF 打卡系統</h2>
-
-  <p>IP: <span id="ipAddress">取得中...</span></p>
-  <p>時間: <span id="currentDate">取得中...</span></p>
-  <p>使用者: <span id="userName">取得中...</span></p>
-
-  <button id="checkinBtn">立即打卡</button>
+  <p id="status">資料尚未準備好...</p>
+  <button id="checkinBtn" disabled>立即打卡</button>
 
   <script>
-    let userProfile = null;
-    let userIP = null;
-    let nowTime = null;
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxf8xs3cX6gSxtdYyWTYbCIxanWbD-V0xxiN12EO7mE7oOj2y_aiBGS2exSdTUavmXV/exec"; // 改成你的 GAS Web App URL
 
-    // 初始化 LIFF
-    async function initLiff() {
-      try {
-        await liff.init({ liffId: "2008504718-nmXP0WRV" });
-        console.log("LIFF 初始化成功");
-
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
-        }
-
-        userProfile = await liff.getProfile();
-        document.getElementById("userName").textContent = userProfile.displayName;
-
-        // 取得 IP
-        userIP = await getUserIP();
-        document.getElementById("ipAddress").textContent = userIP;
-
-        // 顯示當前時間
-        nowTime = new Date();
-        document.getElementById("currentDate").textContent = nowTime.toLocaleString("zh-TW");
-
-      } catch (err) {
-        console.error("初始化錯誤:", err);
-        alert("LIFF 初始化或取得資料失敗，請確認在 LINE app 中開啟頁面。");
-      }
-    }
-
-    // 取得使用者 IP
     async function getUserIP() {
       try {
         const res = await fetch("https://api.ipify.org?format=json");
         const data = await res.json();
         return data.ip;
       } catch (err) {
-        console.error("取得 IP 失敗:", err);
-        return "無法取得 IP";
+        console.error("抓取 IP 失敗", err);
+        return "未知";
       }
     }
 
-    // 點擊打卡
-    async function checkin() {
-      if (!userProfile || !userIP || !nowTime) {
-        alert("資料尚未準備好，請稍後再試。");
-        return;
-      }
-
-      const payload = {
-        userId: userProfile.userId,
-        displayName: userProfile.displayName,
-        date: nowTime.toLocaleDateString("zh-TW"),
-        time: nowTime.toLocaleTimeString("zh-TW"),
-        ip: userIP
-      };
-
-      console.log("打卡資料:", payload);
-
+    async function main() {
       try {
-        const res = await fetch("https://script.google.com/macros/s/AKfycbyizEvSo2QJSMWmYzAt8RVqy6tji2XebjfwrTZcC3H8f9-FJZ8p48_j7haVQOUGosYA/exec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
+        // 初始化 LIFF
+        await liff.init({ liffId: "2008504718-nmXP0WRV" });
+        
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
 
-        const text = await res.text();
-        console.log("GAS 回應:", text);
-        alert("打卡完成！\nGAS 回應：" + text);
+        // 抓使用者資料
+        const profile = await liff.getProfile();
+        const ip = await getUserIP();
+        const now = new Date();
+
+        // 更新狀態
+        document.getElementById("status").textContent =
+          `使用者: ${profile.displayName} (${profile.userId})\nIP: ${ip}\n時間: ${now.toLocaleString()}`;
+        
+        // 啟用打卡按鈕
+        const btn = document.getElementById("checkinBtn");
+        btn.disabled = false;
+
+        btn.onclick = async () => {
+          const payload = {
+            userId: profile.userId,
+            displayName: profile.displayName,
+            date: now.toLocaleDateString(),
+            time: now.toLocaleTimeString(),
+            ip: ip
+          };
+
+          try {
+            const res = await fetch(GAS_URL, {
+              method: "POST",
+              body: JSON.stringify(payload),
+              headers: { "Content-Type": "application/json" }
+            });
+            const result = await res.json();
+            alert("打卡結果: " + result.message);
+          } catch (err) {
+            console.error("送出資料失敗", err);
+            alert("打卡失敗，請稍後再試");
+          }
+        };
+
       } catch (err) {
-        console.error("送出打卡失敗:", err);
-        alert("打卡失敗：" + err);
+        console.error("LIFF 初始化或抓資料失敗", err);
+        document.getElementById("status").textContent = "資料尚未準備好，請稍後再試";
       }
     }
 
-    document.getElementById("checkinBtn").onclick = checkin;
-    window.onload = initLiff;
+    main();
   </script>
 </body>
 </html>
