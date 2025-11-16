@@ -1,40 +1,97 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-  <meta charset="utf-8" />
-  <title>Line 打卡系統</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIFF 打卡系統</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://static.line-scdn.net/liff/2.22/sdk.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background:#f4f4f9;}
+    h2 { color: #2c3e50; }
+    #checkinBtn { padding:10px 20px; font-size:16px; cursor:pointer; }
+    #info { margin-top:20px; }
+    .specialIp { color:#2ecc71; font-weight:bold; }
+    .unknownIp { color:red; font-weight:bold; }
+  </style>
 </head>
-
 <body>
-<h2>打卡系統</h2>
-<button id="checkinBtn">立即打卡</button>
+  <h2>LIFF 打卡系統</h2>
+  <button id="checkinBtn">立即打卡</button>
+
+  <div id="info">
+    <p id="ipAddress">IP: 取得中...</p>
+    <p id="currentDate">時間: 取得中...</p>
+    <p id="userInfo">使用者: 取得中...</p>
+  </div>
 
 <script>
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxz76O3lMvI31FC4JrZ4pcDXMErwMP11RCd4XM0GDpOO0SWVzGur1XDewi7OIUKdEHj/exec";
+const COMPANY_IPS = ["27.240.227.0"]; // 公司 IP 可修改
 
-alert("JS 已載入");
-console.log("JS 已載入");
+async function getUserIP() {
+  try {
+    const res = await fetch("https://api.ipify.org?format=json");
+    const data = await res.json();
+    return data.ip;
+  } catch {
+    return "無法取得";
+  }
+}
 
 async function main() {
-  alert("main() 執行了");
-  console.log("main() 執行了");
-
   await liff.init({ liffId: "2008499706-eBayB9Yd" });
+  const profile = await liff.getProfile();
+  
+  document.getElementById("userInfo").textContent = "使用者: " + profile.displayName;
 
-  alert("LIFF 初始化成功");
-  console.log("LIFF 初始化成功");
+  document.getElementById("checkinBtn").onclick = async () => {
+    const ip = await getUserIP();
+    const now = new Date();
+    const loginDate = now.toLocaleDateString("zh-TW");
+    const loginTime = now.toLocaleTimeString("zh-TW");
 
-  document.getElementById("checkinBtn").onclick = checkin;
+    document.getElementById("ipAddress").innerHTML = "IP: " + (COMPANY_IPS.includes(ip) ? `<span class='specialIp'>${ip} (公司網路)</span>` : `<span class='unknownIp'>${ip} (未知網路)</span>`);
+    document.getElementById("currentDate").textContent = "時間: " + loginDate + " " + loginTime;
+
+    const payload = {
+      userId: profile.userId,
+      displayName: profile.displayName,
+      loginDate: loginDate,
+      loginTime: loginTime,
+      ip: ip
+    };
+
+    try {
+      const res = await fetch(API_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      Swal.fire({
+        icon: 'success',
+        title: '🎉 打卡成功！',
+        html: `
+          <div>使用者: ${profile.displayName}</div>
+          <div>時間: ${loginDate} ${loginTime}</div>
+          <div>IP: ${ip}</div>
+          <div>資料列: ${data.row || "-"}</div>
+        `,
+        showConfirmButton: false,
+        timer: 2500
+      });
+
+    } catch (err) {
+      console.error(err);
+      Swal.fire({ icon: 'error', title: '打卡失敗', text: err });
+    }
+  };
 }
 
-async function checkin() {
-  alert("checkin() 有執行");
-  console.log("checkin() 被執行了！");
-}
-
-main();
+window.onload = main;
 </script>
-
 </body>
 </html>
 
