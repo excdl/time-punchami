@@ -1,88 +1,67 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>奇可智能打卡系統</title>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-body { font-family: Arial, sans-serif; background-color: #f4f4f9; color: #333; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; height:100vh; margin:0; padding:10px;}
-h3 { font-size:24px; font-weight:600; color:#2c3e50; margin-bottom:10px;}
-#currentInfo { display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top:5px; width:100%; }
-#currentInfo p { font-size:16px; margin:5px 0; color:#34495e; font-weight:500; text-align:center;}
-button { margin:10px; padding:10px 20px; font-size:16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
-#btnStart { background-color:#3498db; color:white;}
-#btnEnd { background-color:#e74c3c; color:white;}
-#btnMakeUp { background-color:#f39c12; color:white;}
-#countdownWrapper { margin-top:10px; width:100%; background-color:#ddd; height:40px; border-radius:20px; display:flex; justify-content:center; align-items:center; position:relative; overflow:hidden; display:none;}
-#countdownBar { height:100%; background-color:#3498db; border-radius:20px; width:100%; position:absolute; transition:width 1s linear;}
-#countdownText { position:relative; z-index:2; font-size:18px; font-weight:bold; color:white;}
-#resultText { display:none; position:relative; z-index:3; font-size:18px; font-weight:bold; text-align:center;}
-#todayRecords { margin-top:10px; font-size:16px; }
-@keyframes pulseFade {0% {opacity:1; transform:scale(1);} 50% {opacity:0.5; transform:scale(1.05);} 100% {opacity:1; transform:scale(1);} }
-.pulsingText {color:#3498db !important; animation:pulseFade 1.5s infinite;}
+body { font-family: Arial; background:#f4f4f9; color:#333; display:flex; flex-direction:column; align-items:center; padding:10px; }
+h3 { font-size:24px; margin-bottom:10px;}
+button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
+#btnStart { background:#3498db; color:#fff; }
+#btnEnd { background:#e74c3c; color:#fff; }
+#btnMakeUp { background:#f39c12; color:#fff; }
+#makeUpModal { display:none; padding:20px; border:1px solid #ccc; background:#fff; position:fixed; top:20%; left:50%; transform:translateX(-50%); z-index:999; }
+#makeUpModal label { display:block; margin:5px 0; }
+#todayRecords { margin-top:20px; padding:10px; border:1px solid #ccc; background:#fff; width:90%; max-width:400px; }
 </style>
 </head>
 <body>
-<h3>謝謝使用奇可智能打卡系統</h3>
-<div id="currentInfo">
+<h3>奇可智能打卡系統</h3>
 <p id="currentDate">正在獲取現在時刻...</p>
-</div>
+
 <div>
 <button id="btnStart">上班打卡</button>
 <button id="btnEnd">下班打卡</button>
 <button id="btnMakeUp">補打卡</button>
 </div>
-<div id="countdownWrapper">
-<div id="countdownBar"></div>
-<div id="countdownText">打卡中，請稍候...</div>
-<div id="resultText"></div>
+
+<div id="todayRecords">
+<h4>今日打卡紀錄</h4>
+<ul id="recordList"><li>載入中...</li></ul>
 </div>
-<div id="todayRecords"></div>
+
+<!-- 補打卡模態框 -->
+<div id="makeUpModal">
+  <h3>補打卡</h3>
+  <label>日期: <input type="date" id="makeUpDate"></label>
+  <label>時間: <input type="time" id="makeUpTime"></label>
+  <label>上班/下班: 
+    <select id="makeUpStatus">
+      <option value="上班">上班</option>
+      <option value="下班">下班</option>
+    </select>
+  </label>
+  <br>
+  <button id="submitMakeUp">送出補打卡</button>
+  <button id="cancelMakeUp">取消</button>
+</div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZROnfUGDFvmmjPtzaKWJ73Jwo_h1c1ahxqZLVdqY9OVGMvjQIaoh6MutBuydumpZi/exec";
-let todayRecord = { 上班:null, 下班:null };
-let lastDateCheck = new Date().toLocaleDateString();
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwCIwPGvmI99Turk5Hfwxa_915IF7O6AS9ejmw2UtIyvOBle_n2P3Asj4ZR4EIUeR4a/exec"; // 替換成你的 GAS API
 
-function getCurrentTimeText() {
-    const now = new Date();
-    return now.toLocaleString("zh-TW");
-}
-
+// 顯示當前時間
 function updateCurrentTime() {
-    document.getElementById("currentDate").textContent = "現在時刻: " + getCurrentTimeText();
+    const now = new Date();
+    document.getElementById("currentDate").textContent = "現在時刻: " + now.toLocaleString("zh-TW");
 }
 setInterval(updateCurrentTime, 1000);
 updateCurrentTime();
 
-async function performClockIn(data) {
-    const res = await fetch(API_ENDPOINT, {
-        method: "POST",
-        body: JSON.stringify(data),
-    });
-    return await res.json();
-}
-
-async function clockIn(status, isMakeUp=false) {
-    if (!isMakeUp && todayRecord[status]) {
-        Swal.fire({icon:'warning', title:'已打過卡', text:`今日${status}已打卡，無法重複打卡。`});
-        return;
-    }
-
-    const wrapper = document.getElementById("countdownWrapper");
-    const bar = document.getElementById("countdownBar");
-    const text = document.getElementById("countdownText");
-    const resultEl = document.getElementById("resultText");
-
-    wrapper.style.display = "flex";
-    bar.style.width = "100%";
-    text.style.display = "block";
-    resultEl.style.display = "none";
-    text.classList.remove("pulsingText");
-
+// 打卡函式
+async function clockIn(status, date=null, time=null, isMakeUp=false){
     const profile = await liff.getProfile();
     const userId = profile.userId;
     const displayName = profile.displayName;
@@ -90,103 +69,102 @@ async function clockIn(status, isMakeUp=false) {
     const ipRes = await fetch("https://api.ipify.org?format=json").then(r=>r.json()).catch(()=>({ip:""}));
     const ip = ipRes.ip || "";
 
-    const clockPromise = performClockIn({ ip, userId, displayName, status, isMakeUp });
+    const payload = { userId, displayName, ip, status, isMakeUp };
+    if(date) payload.date = date;
+    if(time) payload.time = time;
 
-    let duration = 3;
-    let width = 100;
-    const countdown = setInterval(() => {
-        width -= 100 / duration;
-        bar.style.width = width + "%";
-    }, 1000);
+    const res = await fetch(API_ENDPOINT, { method:"POST", body:JSON.stringify(payload) });
+    const data = await res.json();
 
-    setTimeout(() => {
-        clearInterval(countdown);
-        bar.style.display = "none";
-        text.classList.add("pulsingText");
-    }, duration * 1000);
-
-    const response = await clockPromise;
-    text.classList.remove("pulsingText");
-    text.style.display = "none";
-    resultEl.style.display = "block";
-
-    if (response.message === "寫入成功") {
-        todayRecord[status] = response.time;
-        updateTodayRecords();
-        resultEl.textContent = `😀 ${status}打卡成功! 時間: ${response.time}`;
-        resultEl.style.color = "#4CAF50";
-        Swal.fire({ icon: 'success', title: '🎉 打卡成功！', html: `<strong>打卡時間：</strong>${response.date} ${response.time}`, showConfirmButton: false, timer:2000 });
-        updateButtonLock();
+    if(data.message==="寫入成功"){
+        Swal.fire('成功', isMakeUp?"補打卡已寫入":"打卡成功","success");
+        loadTodayRecords();
+        if(!isMakeUp) updateLockButtons();
     } else {
-        resultEl.textContent = "😥 打卡失敗，請重試";
-        resultEl.style.color = "red";
-        Swal.fire({ icon: 'error', title: '😥 打卡失敗', html: '請重新操作', showConfirmButton: false, timer:2000 });
+        Swal.fire('失敗', data.message || '打卡失敗','error');
     }
 }
 
-function updateTodayRecords() {
-    const el = document.getElementById("todayRecords");
-    el.innerHTML = `今日打卡紀錄：<br>上班：${todayRecord.上班||"尚未打卡"}<br>下班：${todayRecord.下班||"尚未打卡"}`;
-}
+// 讀取今日打卡紀錄
+async function loadTodayRecords(){
+    const profile = await liff.getProfile();
+    const userId = profile.userId;
+    const today = new Date().toISOString().split("T")[0];
 
-function updateButtonLock() {
-    document.getElementById("btnStart").disabled = todayRecord.上班 && todayRecord.下班 ? true : false;
-    document.getElementById("btnEnd").disabled = todayRecord.上班 && todayRecord.下班 ? true : false;
-}
-
-function autoResetAtMidnight() {
-    const nowDate = new Date().toLocaleDateString();
-    if (nowDate !== lastDateCheck) {
-        lastDateCheck = nowDate;
-        todayRecord = { 上班:null, 下班:null };
-        updateTodayRecords();
-        updateButtonLock();
-        console.log("已自動刷新，按鈕解鎖新的一天");
-    }
-}
-setInterval(autoResetAtMidnight, 60*1000);
-
-async function main() {
-    await liff.init({ liffId: "2008504718-nmXP0WRV" });
-    if (!liff.isLoggedIn()) liff.login();
-
-    document.getElementById("btnStart").onclick = () => clockIn("上班");
-    document.getElementById("btnEnd").onclick = () => clockIn("下班");
-    document.getElementById("btnMakeUp").onclick = async () => {
-        const { value: formValues } = await Swal.fire({
-            title: '補打卡',
-            html:
-              '<input id="swal-date" class="swal2-input" placeholder="日期 yyyy-mm-dd">' +
-              '<input id="swal-time" class="swal2-input" placeholder="時間 HH:mm:ss">' +
-              '<select id="swal-status" class="swal2-input"><option value="上班">上班</option><option value="下班">下班</option></select>',
-            focusConfirm: false,
-            preConfirm: () => {
-              return {
-                date: document.getElementById('swal-date').value,
-                time: document.getElementById('swal-time').value,
-                status: document.getElementById('swal-status').value
-              }
-            }
+    const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${userId}&date=${today}`);
+    const data = await res.json();
+    const list = document.getElementById("recordList");
+    list.innerHTML = "";
+    if(data.records && data.records.length){
+        data.records.forEach(r=>{
+            let li = document.createElement("li");
+            li.textContent = `${r.status} - ${r.time} ${r.makeUp?"(補打卡)":""}`;
+            list.appendChild(li);
         });
-        if (formValues) {
-            const profile = await liff.getProfile();
-            await performClockIn({
-                ip: '',
-                userId: profile.userId,
-                displayName: profile.displayName,
-                status: formValues.status,
-                date: formValues.date,
-                time: formValues.time,
-                isMakeUp: true
-            });
-            Swal.fire('完成', '補打卡成功', 'success');
-        }
-    };
+    } else {
+        list.innerHTML="<li>尚未打卡</li>";
+    }
 }
+
+// 檢查鎖定按鈕
+async function updateLockButtons(){
+    const profile = await liff.getProfile();
+    const userId = profile.userId;
+    const today = new Date().toISOString().split("T")[0];
+
+    const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${userId}&date=${today}`);
+    const data = await res.json();
+    const btnStart = document.getElementById("btnStart");
+    const btnEnd = document.getElementById("btnEnd");
+
+    btnStart.disabled = data.records?.some(r=>r.status==="上班" && !r.makeUp) || false;
+    btnEnd.disabled = data.records?.some(r=>r.status==="下班" && !r.makeUp) || false;
+}
+
+// 自動每天 00:00 解鎖按鈕
+function scheduleUnlock(){
+    const now = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(now.getDate()+1);
+    tomorrow.setHours(0,0,0,0);
+    const ms = tomorrow.getTime() - now.getTime();
+    setTimeout(()=>{
+        document.getElementById("btnStart").disabled=false;
+        document.getElementById("btnEnd").disabled=false;
+        scheduleUnlock(); // 每天循環
+    }, ms);
+}
+
+// 主程式
+async function main(){
+    await liff.init({ liffId:"2008504718-nmXP0WRV" });
+    if(!liff.isLoggedIn()) liff.login();
+
+    document.getElementById("btnStart").onclick = ()=>clockIn("上班");
+    document.getElementById("btnEnd").onclick = ()=>clockIn("下班");
+    document.getElementById("btnMakeUp").onclick = ()=> document.getElementById("makeUpModal").style.display="block";
+    document.getElementById("cancelMakeUp").onclick = ()=> document.getElementById("makeUpModal").style.display="none";
+
+    document.getElementById("submitMakeUp").onclick = ()=>{
+        const date = document.getElementById("makeUpDate").value;
+        const time = document.getElementById("makeUpTime").value;
+        const status = document.getElementById("makeUpStatus").value;
+        if(!date || !time){ Swal.fire('錯誤','請選擇日期與時間','error'); return; }
+        clockIn(status, date, time, true);
+        document.getElementById("makeUpModal").style.display="none";
+    };
+
+    await loadTodayRecords();
+    await updateLockButtons();
+    scheduleUnlock();
+}
+
 window.onload = main;
 </script>
 </body>
 </html>
+
+
 
 
 
