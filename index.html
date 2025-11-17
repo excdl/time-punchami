@@ -11,146 +11,117 @@ body { font-family: Arial, sans-serif; background-color: #f4f4f9; color: #333; d
 h3 { font-size:24px; font-weight:600; color:#2c3e50; margin-bottom:10px;}
 #currentInfo { display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top:5px; width:100%;}
 #currentInfo p { font-size:16px; margin:5px 0; color:#34495e; font-weight:500; text-align:center;}
-#ipAddress { font-size:16px; font-weight:500; color:#34495e; text-align:center; width:100%;}
-.specialIp, .unknownConnection { border:2px solid; border-radius:12px; padding:5px 10px; display:inline-block; text-align:center;}
-.specialIp { border-color:#2ecc71; color:#2ecc71; font-weight:bold;}
-.unknownConnection { border-color:red; color:red; font-weight:bold; animation:blink 2s infinite;}
 button { margin:10px; padding:10px 20px; font-size:16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
 #btnStart { background-color:#3498db; color:white;}
 #btnEnd { background-color:#e74c3c; color:white;}
-#countdownWrapper { margin-top:10px; width:100%; background-color:#ddd; height:40px; border-radius:20px; display:flex; justify-content:center; align-items:center; position:relative; overflow:hidden;}
+#countdownWrapper { margin-top:10px; width:100%; background-color:#ddd; height:40px; border-radius:20px; display:flex; justify-content:center; align-items:center; position:relative; overflow:hidden; display:none;}
 #countdownBar { height:100%; background-color:#3498db; border-radius:20px; width:100%; position:absolute; transition:width 1s linear;}
 #countdownText { position:relative; z-index:2; font-size:18px; font-weight:bold; color:white;}
 #resultText { display:none; position:relative; z-index:3; font-size:18px; font-weight:bold; text-align:center;}
-@keyframes blink {0% {opacity:1;} 50% {opacity:0;} 100% {opacity:1;}}
-@keyframes pulseFade {0% {opacity:1; transform:scale(1);} 50% {opacity:0.5; transform:scale(1.05);} 100% {opacity:1; transform:scale(1);}}
+@keyframes pulseFade {0% {opacity:1; transform:scale(1);} 50% {opacity:0.5; transform:scale(1.05);} 100% {opacity:1; transform:scale(1);} }
 .pulsingText {color:#3498db !important; animation:pulseFade 1.5s infinite;}
 </style>
 </head>
 <body>
 <h3>謝謝使用奇可智能打卡系統</h3>
 <div id="currentInfo">
-<p id="ipAddress">正在獲取 IP 地址...</p>
 <p id="currentDate">正在獲取現在時刻...</p>
 </div>
 <div>
 <button id="btnStart">上班打卡</button>
 <button id="btnEnd">下班打卡</button>
 </div>
-<div id="countdownWrapper" style="display:none;">
+<div id="countdownWrapper">
 <div id="countdownBar"></div>
 <div id="countdownText">打卡中，請稍候...</div>
 <div id="resultText"></div>
 </div>
 
 <script>
-const COMPANY_IPS = ["118.231.136.15"];
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxG7ppHNFDxolcBDRgSki94I9X3gCYorANltS6bYy-A30mt0lnctW6JTSddZhI1_C1I/exec"; // Google Apps Script URL
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxyWN86SI0hpsugEmM3O4qMcnip3gj6PkaY8_v61OGVQDE6naNa59_v7inAWzm3w2uL/exec";
 
-async function getUserIP() {
-  try {
-    const res = await fetch("https://api.ipify.org?format=json");
-    const data = await res.json();
-    return data.ip;
-  } catch {
-    return null;
-  }
+function getCurrentTimeText() {
+    const now = new Date();
+    return now.toLocaleString("zh-TW");
 }
 
-async function displayCurrentInfo(ip) {
-  const date = new Date();
-  document.getElementById("currentDate").textContent = "現在時刻: " + date.toLocaleString("zh-TW");
-  if (!ip) {
-    document.getElementById("ipAddress").textContent = "無法獲取 IP 地址";
-    return;
-  }
-  if (COMPANY_IPS.includes(ip)) {
-    document.getElementById("ipAddress").innerHTML = '<span class="specialIp">已連接公司網路</span>';
-  } else {
-    document.getElementById("ipAddress").innerHTML = '<span class="unknownConnection">不明連線</span>';
-  }
+function updateCurrentTime() {
+    document.getElementById("currentDate").textContent = "現在時刻: " + getCurrentTimeText();
 }
+setInterval(updateCurrentTime, 1000);
+updateCurrentTime();
 
 async function performClockIn(data) {
-  const res = await fetch(API_ENDPOINT, {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-  return await res.text();
+    const res = await fetch(API_ENDPOINT, {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+    return await res.json();
 }
 
 async function clockIn(status) {
-  const ip = await getUserIP();
-  await displayCurrentInfo(ip);
+    const wrapper = document.getElementById("countdownWrapper");
+    const bar = document.getElementById("countdownBar");
+    const text = document.getElementById("countdownText");
+    const resultEl = document.getElementById("resultText");
 
-  const bar = document.getElementById("countdownBar");
-  const text = document.getElementById("countdownText");
-  const resultEl = document.getElementById("resultText");
-  const wrapper = document.getElementById("countdownWrapper");
-  wrapper.style.display = "flex";
+    wrapper.style.display = "flex";
+    bar.style.width = "100%";
+    text.style.display = "block";
+    resultEl.style.display = "none";
+    text.classList.remove("pulsingText");
 
-  let duration = 3;
-  let width = 100;
-  const countdown = setInterval(() => {
-    width -= 100 / duration;
-    bar.style.width = width + "%";
-  }, 1000);
+    const profile = await liff.getProfile();
+    const userId = profile.userId;
+    const displayName = profile.displayName;
 
-  text.style.display = "block";
-  resultEl.style.display = "none";
-  text.classList.remove("pulsingText");
+    const ipRes = await fetch("https://api.ipify.org?format=json").then(r=>r.json()).catch(()=>({ip:""}));
+    const ip = ipRes.ip || "";
 
-  const profile = await liff.getProfile();
-  const userId = profile.userId;
-  const displayName = profile.displayName;
+    const clockPromise = performClockIn({ ip, userId, displayName, status });
 
-  const clockInPromise = performClockIn({ ip, userId, displayName, status });
+    let duration = 3;
+    let width = 100;
+    const countdown = setInterval(() => {
+        width -= 100 / duration;
+        bar.style.width = width + "%";
+    }, 1000);
 
-  setTimeout(() => {
-    clearInterval(countdown);
-    bar.style.display = "none";
-    text.classList.add("pulsingText");
-  }, duration * 1000);
+    setTimeout(() => {
+        clearInterval(countdown);
+        bar.style.display = "none";
+        text.classList.add("pulsingText");
+    }, duration * 1000);
 
-  clockInPromise.then(responseText => {
+    const response = await clockPromise;
     text.classList.remove("pulsingText");
     text.style.display = "none";
     resultEl.style.display = "block";
 
-    const nowTime = new Date().toLocaleTimeString("zh-TW");
-    const isCompanyIP = COMPANY_IPS.includes(ip);
-
-    if (responseText.includes("成功") && isCompanyIP) {
-      resultEl.textContent = "😀 打卡成功!";
-      resultEl.style.color = "#4CAF50";
-      Swal.fire({ icon: 'success', title: '🎉 打卡成功！', html: `<strong>打卡時間：</strong>${nowTime}`, showConfirmButton: false, allowOutsideClick: true });
-    } else if (responseText.includes("成功")) {
-      resultEl.textContent = "⚠ 連線錯誤，切換網路再試";
-      resultEl.style.color = "#e67e22";
-      Swal.fire({ icon: 'warning', title: '⚠ 非公司網路', html: '<div>◎ 異地打卡請忽略 ◎</div>', showConfirmButton: false, allowOutsideClick: true });
+    if (response.message === "寫入成功") {
+        resultEl.textContent = `😀 打卡成功! 時間: ${response.time}`;
+        resultEl.style.color = "#4CAF50";
+        Swal.fire({ icon: 'success', title: '🎉 打卡成功！', html: `<strong>打卡時間：</strong>${response.date} ${response.time}`, showConfirmButton: false, timer:2000 });
     } else {
-      resultEl.textContent = "😥 關閉視窗，重新打卡。";
-      resultEl.style.color = "red";
-      Swal.fire({ icon: 'error', title: '😥 操作錯誤', html: '未簽到或重複簽到', showConfirmButton: false, allowOutsideClick: true });
+        resultEl.textContent = "😥 打卡失敗，請重試";
+        resultEl.style.color = "red";
+        Swal.fire({ icon: 'error', title: '😥 打卡失敗', html: '請重新操作', showConfirmButton: false, timer:2000 });
     }
-  });
 }
 
 async function main() {
-  await liff.init({ liffId: "2008504718-nmXP0WRV" });
-  if (!liff.isLoggedIn()) liff.login();
+    await liff.init({ liffId: "2008504718-nmXP0WRV" });
+    if (!liff.isLoggedIn()) liff.login();
 
-  document.getElementById("btnStart").onclick = () => clockIn("上班");
-  document.getElementById("btnEnd").onclick = () => clockIn("下班");
-
-  const ip = await getUserIP();
-  await displayCurrentInfo(ip);
+    document.getElementById("btnStart").onclick = () => clockIn("上班");
+    document.getElementById("btnEnd").onclick = () => clockIn("下班");
 }
 
 window.onload = main;
 </script>
 </body>
 </html>
+
 
 
 
