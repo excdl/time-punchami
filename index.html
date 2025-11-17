@@ -26,141 +26,203 @@ button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; curso
 
 <div id="userInfo">正在獲取使用者資訊...</div>
 <div id="statusInfo"></div>
-
 <div>
-<button id="btnStart">上班打卡</button>
-<button id="btnEnd">下班打卡</button>
-<button id="btnMakeup">補打卡</button>
+    <button id="btnStart">上班打卡</button>
+    <button id="btnEnd">下班打卡</button>
+    <button id="btnMakeup">補打卡</button>
 </div>
 
 <div id="countdownWrapper">
-  <svg width="120" height="120">
-    <circle id="circleBg" cx="60" cy="60" r="60"></circle>
-    <circle id="circleProgress" cx="60" cy="60" r="60"></circle>
-  </svg>
-  <div id="countdownText">打卡中...</div>
+    <svg width="120" height="120">
+        <circle id="circleBg" cx="60" cy="60" r="60"></circle>
+        <circle id="circleProgress" cx="60" cy="60" r="60"></circle>
+    </svg>
+    <div id="countdownText">打卡中...</div>
 </div>
 
 <div id="todayRecords">今日打卡紀錄：</div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwdzIE_nGJJshwYr1IakOK60HNWNEJz_v2yf4mwTgueJmoH1yDuSjYa72AGqdxyykNq/exec";
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxB8S7Nzq9ntS2sQXixD7z3BF0RVyeIMb2GxQVxXtyZ__mzypiD1GtQy4n2wOGggexh/exec";
 const COMPANY_IPS = ["114.34.60.48","27.240.227.0"]; // 公司IP清單
 
 async function getIP() {
-  try { const res = await fetch("https://api.ipify.org?format=json"); const data = await res.json(); return data.ip; }
-  catch { return ""; }
+    try {
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        return data.ip;
+    } catch { return ""; }
 }
 
 async function updateUserInfo() {
-  await liff.init({ liffId: "2008504718-nmXP0WRV" });
-  if(!liff.isLoggedIn()) liff.login();
-  const profile = await liff.getProfile();
-  window.userId = profile.userId;
-  window.userName = profile.displayName;
-  const ip = await getIP();
-  const isCompany = COMPANY_IPS.includes(ip);
-  document.getElementById("userInfo").textContent = profile.displayName + " 您好";
-  const statusEl = document.getElementById("statusInfo");
-  statusEl.textContent = isCompany ? "已連線公司網路" : "不明連線";
-  statusEl.style.backgroundColor = isCompany ? "#d4f4dd" : "#f8d4d4";
-  statusEl.style.color = isCompany ? "green" : "red";
+    await liff.init({ liffId: "2008504718-nmXP0WRV" });
+    if(!liff.isLoggedIn()) liff.login();
+    const profile = await liff.getProfile();
+    window.userId = profile.userId;
+    window.userName = profile.displayName;
+    const ip = await getIP();
+    const isCompany = COMPANY_IPS.includes(ip);
+    document.getElementById("userInfo").textContent = profile.displayName + " 您好";
+    const statusEl = document.getElementById("statusInfo");
+    statusEl.textContent = isCompany ? "已連線公司網路" : "不明連線";
+    statusEl.style.backgroundColor = isCompany ? "#d4f4dd" : "#f8d4d4";
+    statusEl.style.color = isCompany ? "green" : "red";
 }
 
-async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
-  const ip = await getIP();
-  const wrapper = document.getElementById("countdownWrapper");
-  const circle = document.getElementById("circleProgress");
-  const text = document.getElementById("countdownText");
-  wrapper.style.display = "block";
-  text.textContent = isMakeup ? "補打卡中..." : "打卡中...";
-  
-  // 顏色設定
-  const startColor = isMakeup ? {r:243, g:156, b:18} : {r:52, g:152, b:219};
-  const endColor = isMakeup ? {r:255, g:200, b:0} : {r:46, g:204, b:113};
+async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
+    try {
+        const ip = await getIP();
+        const wrapper = document.getElementById("countdownWrapper");
+        const circle = document.getElementById("circleProgress");
+        const text = document.getElementById("countdownText");
+        wrapper.style.display = "block";
+        text.textContent = isMakeup ? "補打卡中..." : "打卡中...";
 
-  const radius = 60;
-  const circumference = 2 * Math.PI * radius;
-  circle.style.strokeDasharray = circumference;
-  circle.style.strokeDashoffset = 0;
+        const startColor = isMakeup ? { r: 243, g: 156, b: 18 } : { r: 52, g: 152, b: 219 };
+        const endColor = isMakeup ? { r: 255, g: 200, b: 0 } : { r: 46, g: 204, b: 113 };
+        const radius = 60;
+        const circumference = 2 * Math.PI * radius;
+        circle.style.strokeDasharray = circumference;
+        circle.style.strokeDashoffset = 0;
 
-  // 取消秒數倒數，動畫3秒
-  const steps = 60;
-  for(let i=0;i<=steps;i++){
-    await new Promise(r=>setTimeout(r,50));
-    const progress = i/steps;
-    circle.style.strokeDashoffset = circumference * (1-progress);
+        const steps = 60;
+        for (let i = 0; i <= steps; i++) {
+            await new Promise(r => setTimeout(r, 50));
+            const progress = i / steps;
+            circle.style.strokeDashoffset = circumference * (1 - progress);
+            const rC = Math.round(startColor.r * (1 - progress) + endColor.r * progress);
+            const gC = Math.round(startColor.g * (1 - progress) + endColor.g * progress);
+            const bC = Math.round(startColor.b * (1 - progress) + endColor.b * progress);
+            circle.style.stroke = `rgb(${rC},${gC},${bC})`;
+        }
 
-    // 顏色漸變
-    const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
-    const gC = Math.round(startColor.g*(1-progress) + endColor.g*progress);
-    const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
-    circle.style.stroke = `rgb(${rC},${gC},${bC})`;
-  }
+        const res = await fetch(API_ENDPOINT, {
+            method: "POST",
+            body: JSON.stringify({
+                userId: window.userId,
+                displayName: window.userName,
+                status,
+                ip,
+                customDate,
+                customTime,
+                isMakeup
+            })
+        });
+        const data = await res.json();
+        wrapper.style.display = "none";
 
-  // 呼叫API
-  const res = await fetch(API_ENDPOINT, {
-    method:"POST",
-    body: JSON.stringify({ 
-      userId: window.userId, 
-      displayName: window.userName, 
-      status, 
-      ip, 
-      customDate, 
-      customTime,
-      isMakeup
-    })
-  });
-  const data = await res.json();
-  wrapper.style.display="none";
-  if(data.message==="寫入成功") {
-    Swal.fire({icon:'success', title:isMakeup?'補打卡成功':'打卡成功', html:`${status} ${data.date} ${data.time}${isMakeup?' (待主管批核後生效)':''}`, timer:2000});
-    updateTodayRecords();
-  } else {
-    Swal.fire({icon:'error', title:'打卡失敗', html:data.message, timer:2000});
-  }
+        const now = `${data.date} ${data.time}`;
+        const resultText = document.getElementById("statusInfo");
+
+        // 補打卡維持原樣
+        if (isMakeup) {
+            if (data.message.includes("成功")) {
+                Swal.fire({
+                    icon: "success",
+                    title: "補打卡成功",
+                    html: `${status} ${now} (待主管批核後生效)`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                Swal.fire({
+                    icon: "error",
+                    title: "補打卡失敗",
+                    html: data.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        } else {
+            // 一般打卡：完全比對 IP
+            if (data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
+                Swal.fire({
+                    icon: "success",
+                    title: "🎉 打卡成功！",
+                    html: `<strong>打卡時間：</strong> ${now}`,
+                    showConfirmButton: false,
+                    timer: 4000,
+                    backdrop:
+                        `rgba(0,0,0,0.5) url("https://i.imgur.com/3pEHqKf.gif") center center / cover no-repeat`
+                });
+                resultText.textContent = "😀 打卡成功!";
+                resultText.style.color = "#4CAF50";
+            } else if (data.message.includes("成功")) {
+                Swal.fire({
+                    icon: "warning",
+                    title: `<span style="font-size: 20px; color: #e67e22;">⚠連線錯誤，切換網路再試</span>`,
+                    html: `<div style="font-size: 16px; color: #3498db;font-weight: bold; margin-top: 8px;">◎ 異地打卡請忽略 ◎</div>`,
+                    showConfirmButton: false,
+                    backdrop:
+                        `rgba(0,0,0,0.5) url("https://i.imgur.com/yhvwIFG.gif") center center / cover no-repeat`,
+                });
+                resultText.textContent = "⚠ 連線錯誤，切換網路再試";
+                resultText.style.color = "#e67e22";
+            } else {
+                Swal.fire({
+                    icon: "error",
+                    title: "😥 打卡失敗",
+                    html: "操作錯誤，請重新操作",
+                    showConfirmButton: false,
+                    backdrop:
+                        `rgba(0,0,0,0.5) url("https://i.imgur.com/oYiTqum.gif") center center / cover no-repeat`,
+                });
+                resultText.textContent = "😥 連線閒置，請重新操作。";
+                resultText.style.color = "red";
+            }
+        }
+        updateTodayRecords();
+    } catch (error) {
+        Swal.fire({
+            icon: "error",
+            title: "😥 發生錯誤",
+            html: "請通知人事部門！",
+            showConfirmButton: false,
+        });
+        console.error("打卡錯誤：", error);
+    }
 }
 
 async function updateTodayRecords() {
-  const today = new Date().toISOString().slice(0,10);
-  const res = await fetch(API_ENDPOINT + `?action=getToday&userId=${window.userId}&date=${today}`);
-  const data = await res.json();
-  const container = document.getElementById("todayRecords");
-  if(data.length===0) container.textContent = "今日打卡紀錄：無";
-  else container.innerHTML = "今日打卡紀錄：<br>" + data.map(r=>`${r.status} ${r.time}${r.isMakeup?' (補打卡)':''}`).join("<br>");
+    const today = new Date().toISOString().slice(0,10);
+    const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
+    const data = await res.json();
+    const container = document.getElementById("todayRecords");
+    if (data.length===0) container.textContent = "今日打卡紀錄：無";
+    else container.innerHTML = "今日打卡紀錄：<br>" + data.map(r=>`${r.status} ${r.time}${r.isMakeup?' (補打卡)':''}`).join("<br>");
 }
 
 document.getElementById("btnStart").onclick = ()=>performClockIn("上班");
 document.getElementById("btnEnd").onclick = ()=>performClockIn("下班");
 document.getElementById("btnMakeup").onclick = async ()=>{
-  const { value: formValues } = await Swal.fire({
-    title: '補打卡設定',
-    html: `
-      <label>日期:</label><input type="date" id="swalDate" class="swal2-input"><br>
-      <label>時間:</label><input type="time" id="swalTime" class="swal2-input"><br>
-      <label>動態:</label>
-      <select id="swalStatus" class="swal2-select">
-        <option>上班</option><option>下班</option>
-      </select>`,
-    focusConfirm: false,
-    preConfirm: () => [
-      document.getElementById('swalDate').value,
-      document.getElementById('swalTime').value,
-      document.getElementById('swalStatus').value
-    ],
-    showCancelButton:true,
-    confirmButtonText:'完成'
-  });
-  if(formValues) performClockIn(formValues[2], formValues[0], formValues[1], true);
+    const { value: formValues } = await Swal.fire({
+        title: '補打卡設定',
+        html: `<label>日期:</label><input type="date" id="swalDate" class="swal2-input"><br>
+               <label>時間:</label><input type="time" id="swalTime" class="swal2-input"><br>
+               <label>動態:</label>
+               <select id="swalStatus" class="swal2-select">
+                   <option>上班</option><option>下班</option>
+               </select>`,
+        focusConfirm: false,
+        preConfirm: () => [
+            document.getElementById('swalDate').value,
+            document.getElementById('swalTime').value,
+            document.getElementById('swalStatus').value
+        ],
+        showCancelButton:true,
+        confirmButtonText:'完成'
+    });
+    if(formValues) performClockIn(formValues[2], formValues[0], formValues[1], true);
 };
 
 window.onload = async ()=>{
-  await updateUserInfo();
-  await updateTodayRecords();
+    await updateUserInfo();
+    await updateTodayRecords();
 };
 </script>
 </body>
 </html>
+
 
 
 
