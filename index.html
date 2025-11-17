@@ -2,56 +2,84 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>LIFF Example</title>
+  <title>LIFF Debug</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-  <h2>資料紀錄中...</h2>
+  <h2 id="status">資料紀錄中...</h2>
+  <pre id="log"></pre>
 
   <script>
+    function log(msg) {
+      document.getElementById("log").textContent += msg + "\n";
+    }
+
     async function getIP() {
-      const res = await fetch("https://api.ipify.org?format=json");
-      const data = await res.json();
-      return data.ip;
+      try {
+        log("取得 IP 中...");
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        log("IP：" + data.ip);
+        return data.ip;
+      } catch (err) {
+        log("IP 錯誤：" + err);
+        throw err;
+      }
     }
 
     async function main() {
-      await liff.init({ liffId: "2008504718-nmXP0WRV" });
+      try {
+        log("開始 liff.init...");
+        await liff.init({ liffId: "2008504718-nmXP0WRV" });
+        log("LIFF 初始化成功");
 
-      if (!liff.isLoggedIn()) {
-        liff.login();
-        return;
+        if (!liff.isLoggedIn()) {
+          log("未登入，執行 login");
+          liff.login();
+          return;
+        }
+
+        log("取得 Profile...");
+        const profile = await liff.getProfile();
+        log("Profile：" + JSON.stringify(profile));
+
+        const now = new Date();
+        const date = now.toISOString().split("T")[0];
+        const time = now.toTimeString().split(" ")[0];
+
+        const ip = await getIP();
+
+        const payload = {
+          userId: profile.userId,
+          displayName: profile.displayName,
+          date: date,
+          time: time,
+          ip: ip
+        };
+
+        log("送出資料到 GAS...");
+        const res = await fetch("https://script.google.com/macros/s/AKfycbxdHOQ131l2Uhu8EWAk-Tb7SB24g8j7gDSbKfB8eztB3srtViL1S-HepftFHMsxpV47/exec", {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: { "Content-Type": "application/json" }
+        });
+
+        const text = await res.text();
+        log("GAS 回應：" + text);
+
+        document.getElementById("status").innerText = "資料已寫入！";
+      } catch (err) {
+        log("錯誤發生：" + err);
+        document.getElementById("status").innerText = "錯誤，請查看下方 log";
       }
-
-      const profile = await liff.getProfile();
-
-      const now = new Date();
-      const date = now.toISOString().split("T")[0];
-      const time = now.toTimeString().split(" ")[0];
-
-      const ip = await getIP();
-
-      const payload = {
-        userId: profile.userId,
-        displayName: profile.displayName,
-        date: date,
-        time: time,
-        ip: ip
-      };
-
-      await fetch("https://script.google.com/macros/s/AKfycbxdHOQ131l2Uhu8EWAk-Tb7SB24g8j7gDSbKfB8eztB3srtViL1S-HepftFHMsxpV47/exec", {
-        method: "POST",
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json" }
-      });
-
-      document.body.innerHTML = "<h2>資料已成功寫入！</h2>";
     }
 
     main();
   </script>
 </body>
 </html>
+
+
 
 
 
