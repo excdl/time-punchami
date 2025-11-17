@@ -150,7 +150,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
             } else if (data.message.includes("成功")) {
                 Swal.fire({
                     icon: "warning",
-                    title: `<span style="font-size: 20px; color: #e67e22;">⚠連線錯誤，切換網路再試</span>`,
+                    title: `<span style="font-size: 20px; color: #e67e22;">⚠未使用公司網路，切換網路再試</span>`,
                     html: `<div style="font-size: 16px; color: #3498db;font-weight: bold; margin-top: 8px;">◎ 異地打卡請忽略 ◎</div>`,
                     showConfirmButton: false,
                     backdrop:
@@ -161,8 +161,8 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
             } else {
                 Swal.fire({
                     icon: "error",
-                    title: "😥 打卡失敗",
-                    html: "操作錯誤，請重新操作",
+                    title: "😥 今日已打卡",
+                    html: "重複打卡，請確認",
                     showConfirmButton: false,
                     backdrop:
                         `rgba(0,0,0,0.5) url("https://i.imgur.com/oYiTqum.gif") center center / cover no-repeat`,
