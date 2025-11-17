@@ -7,33 +7,19 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-body { font-family: Arial, sans-serif; background-color: #f4f4f9; color:#333; display:flex; flex-direction:column; align-items:center; padding:10px;}
-h3 { font-size:24px; font-weight:600; color:#2c3e50; margin-bottom:10px;}
-#greeting { font-size:20px; font-weight:500; margin-bottom:15px; color:#2c3e50; }
-button { margin:10px; padding:10px 20px; font-size:16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
-#btnStart { background-color:#3498db; color:white; width:200px; height:50px; font-size:16px;}
-#btnEnd { background-color:#e74c3c; color:white; width:200px; height:50px; font-size:16px;}
-#btnSupplement { 
-  background-color:#f39c12; 
-  color:white; 
-  width:400px;     /* 原來的 100%+100% */
-  height:120px;    /* 原來的 50px x 2 */
-  font-size:24px;  
-  font-weight:bold;
-  border-radius:12px;
-  margin-top:20px;
-  box-shadow:0 4px 8px rgba(0,0,0,0.2);
-  transition: transform 0.2s;
-}
-#btnSupplement:hover { transform: scale(1.05); }
-#records { margin-top:20px; width:90%; max-width:500px; background:#fff; border-radius:10px; padding:15px; box-shadow:0 2px 6px rgba(0,0,0,0.2);}
-#records p { margin:5px 0; font-size:16px; }
+body { font-family: Arial, sans-serif; background:#f4f4f9; display:flex; flex-direction:column; align-items:center; padding:10px;}
+h3 { font-size:24px; color:#2c3e50; margin-bottom:10px;}
+button { margin:10px; padding:12px 25px; font-size:16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
+#btnStart { background-color:#3498db; color:white;}
+#btnEnd { background-color:#e74c3c; color:white;}
+#btnSupplement { background-color:#f39c12; color:white; width:200px; height:50px;}
+#record { margin-top:20px; width:100%; max-width:400px; background:#fff; padding:10px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
 </style>
 </head>
 <body>
 
-<h3>謝謝使用奇可智能打卡系統</h3>
-<div id="greeting">正在載入用戶資訊...</div>
+<h3 id="greeting">您好</h3>
+<p id="currentDate">正在獲取現在時刻...</p>
 
 <div>
   <button id="btnStart">上班打卡</button>
@@ -41,113 +27,96 @@ button { margin:10px; padding:10px 20px; font-size:16px; border-radius:8px; bord
   <button id="btnSupplement">補打卡</button>
 </div>
 
-<div id="records">
-  <strong>今日打卡紀錄：</strong>
-  <div id="recordList">載入中...</div>
+<div id="record">
+  <h4>今日打卡紀錄</h4>
+  <ul id="todayRecord">
+    <li>載入中...</li>
+  </ul>
 </div>
 
 <script>
 const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbznKPQprdoGD3wkPV2d3Ip4XksAS2hs8yTav56P7yKsTw-uuqw_o878yQ9CRKuJ2HKB/exec";
 const COMPANY_IPS = ["27.240.227.0"];
 
-// 每秒更新時鐘
-setInterval(() => {
-  document.getElementById("greeting").textContent += ""; // 可加時鐘顯示
-}, 1000);
+// 更新時鐘
+setInterval(()=>{
+  document.getElementById("currentDate").textContent = "現在時刻: " + new Date().toLocaleString("zh-TW");
+},1000);
 
-// 取得使用者 IP
-async function getIP() {
-  try {
-    const res = await fetch("https://api.ipify.org?format=json");
-    const data = await res.json();
-    return data.ip;
-  } catch {
-    return "";
-  }
+// localStorage 儲存今天是否已打卡
+function isLocked(type){
+  const today = new Date().toISOString().slice(0,10);
+  const val = localStorage.getItem(`${type}_clock`);
+  return val === today;
+}
+function lockButton(type){
+  const today = new Date().toISOString().slice(0,10);
+  localStorage.setItem(`${type}_clock`, today);
 }
 
-// 呼叫 GAS
-async function callAPI(body) {
-  const res = await fetch(API_ENDPOINT, { method:"POST", body:JSON.stringify(body) });
-  return await res.json();
+// 顯示紀錄
+function showRecord(list){
+  const ul = document.getElementById("todayRecord");
+  ul.innerHTML = "";
+  if(list.length===0) ul.innerHTML="<li>尚無紀錄</li>";
+  else list.forEach(item=>{const li=document.createElement("li"); li.textContent=item; ul.appendChild(li);});
 }
 
-// 檢查按鈕是否鎖定
-function checkLock(key) {
-  const stored = localStorage.getItem(key);
-  if (!stored) return false;
-  const today = new Date().toISOString().split("T")[0];
-  return stored === today;
-}
-
-// 鎖定按鈕
-function lockButton(btnId, key) {
-  document.getElementById(btnId).disabled = true;
-  localStorage.setItem(key, new Date().toISOString().split("T")[0]);
-}
-
-// 顯示今日打卡紀錄
-function showRecords(records) {
-  const container = document.getElementById("recordList");
-  if (!records || records.length === 0) container.innerHTML = "尚無紀錄";
-  else container.innerHTML = records.join("<br>");
-}
+// 取得 IP
+async function getIP(){try{const res=await fetch("https://api.ipify.org?format=json"); const data=await res.json(); return data.ip;}catch{return "";}}
+async function callAPI(body){const res=await fetch(API_ENDPOINT,{method:"POST",body:JSON.stringify(body)}); return await res.json();}
 
 // 打卡主程式
-async function clockIn(status, btnId) {
+async function clockIn(status){
   const profile = await liff.getProfile();
   const userId = profile.userId;
   const displayName = profile.displayName;
-
   const ip = await getIP();
 
-  const result = await callAPI({ status, userId, displayName, ip });
+  const result = await callAPI({status,userId,displayName,ip});
 
-  // 公司 IP
-  if (COMPANY_IPS.includes(ip)) {
-    Swal.fire({ icon:"success", title:"打卡成功", html:`${result.date} ${result.time}`, timer:2000 });
-    if (btnId) lockButton(btnId, status+"_"+userId);  // 上班/下班/補打卡鎖定
+  if(result.ipStatus==="打卡成功"){
+    Swal.fire({icon:"success",title:"打卡成功",html:`${result.date} ${result.time}`,timer:2000});
+    lockButton(status);
+    updateButtons();
+    updateRecord();
   } else {
-    Swal.fire({ icon:"warning", title:"異地打卡請忽略", html:"IP 不符", timer:2500 });
-  }
-
-  // 自動更新今日紀錄
-  if (status !== "補打卡") {
-    const todayRecords = await callAPI({ status:"查詢", userId, displayName, ip });
-    showRecords(todayRecords.records);
+    Swal.fire({icon:"warning",title:"異地打卡",html:"IP 不符，將不列入正式打卡紀錄"});
   }
 }
 
-// ----------------------
-// 初始化
-// ----------------------
-async function main() {
-  await liff.init({ liffId:"2008504718-nmXP0WRV" });
-  if (!liff.isLoggedIn()) liff.login();
+// 更新按鈕狀態
+function updateButtons(){
+  document.getElementById("btnStart").disabled = isLocked("上班");
+  document.getElementById("btnEnd").disabled = isLocked("下班");
+  document.getElementById("btnSupplement").disabled = false;
+}
+
+// 更新今日打卡紀錄
+async function updateRecord(){
+  const profile = await liff.getProfile();
+  const userId = profile.userId;
+  const result = await callAPI({status:"查詢",userId,displayName:profile.displayName});
+  showRecord(result.records||[]);
+}
+
+// 主程式
+async function main(){
+  await liff.init({liffId:"2008504718-nmXP0WRV"});
+  if(!liff.isLoggedIn()) liff.login();
 
   const profile = await liff.getProfile();
   document.getElementById("greeting").textContent = `${profile.displayName} 您好`;
 
-  // 檢查是否需要鎖定
-  ["上班","下班","補打卡"].forEach(status => {
-    if (checkLock(status+"_"+profile.userId)) {
-      if(status==="上班") document.getElementById("btnStart").disabled = true;
-      if(status==="下班") document.getElementById("btnEnd").disabled = true;
-      if(status==="補打卡") document.getElementById("btnSupplement").disabled = true;
-    }
-  });
+  document.getElementById("btnStart").onclick = ()=>clockIn("上班");
+  document.getElementById("btnEnd").onclick = ()=>clockIn("下班");
+  document.getElementById("btnSupplement").onclick = ()=>clockIn("補打卡");
 
-  // 綁定按鈕
-  document.getElementById("btnStart").onclick = () => clockIn("上班","btnStart");
-  document.getElementById("btnEnd").onclick = () => clockIn("下班","btnEnd");
-  document.getElementById("btnSupplement").onclick = () => clockIn("補打卡","btnSupplement");
-
-  // 頁面載入即顯示今日紀錄
-  const todayRecords = await callAPI({ status:"查詢", userId:profile.userId, displayName:profile.displayName, ip: await getIP() });
-  showRecords(todayRecords.records);
+  updateButtons();
+  updateRecord();
 }
 
-window.onload = main;
+window.onload=main;
 </script>
 
 </body>
