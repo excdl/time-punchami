@@ -1,83 +1,58 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE 打卡系統</title>
-  <script src="https://static.line-scdn.net/liff/2.22/sdk.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; text-align: center; }
-    button { padding: 10px 20px; font-size: 18px; cursor: pointer; }
-    p { font-size: 18px; }
-  </style>
+  <meta charset="UTF-8" />
+  <title>LIFF Example</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-  <h2>LINE 打卡系統</h2>
-  <p>使用者: <span id="userName">取得中...</span></p>
-  <p>IP: <span id="userIP">取得中...</span></p>
-  <p>時間: <span id="currentTime">取得中...</span></p>
-  <button id="checkinBtn">立即打卡</button>
+  <h2>資料紀錄中...</h2>
 
   <script>
-    // ====== 填入你的 LIFF ID 和 GAS Web App URL ======
-    const LIFF_ID = "2008504718-nmXP0WRV";
-    const GAS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwdk5nXNw8EcI04QWnZhQYjQAXJdsU56n9hEMlLdAxiRF-_oLQQ7uUoC1QC18Hdib8k/exec";
-
-    async function initLiff() {
-      try {
-        await liff.init({ liffId: LIFF_ID });
-        console.log("LIFF 初始化成功");
-
-        if (!liff.isLoggedIn()) liff.login();
-
-        // 取得使用者資料
-        const profile = await liff.getProfile();
-        document.getElementById("userName").textContent = profile.displayName;
-
-        // 取得使用者 IP
-        const ip = await fetch("https://api.ipify.org?format=json")
-                         .then(res => res.json())
-                         .then(data => data.ip);
-        document.getElementById("userIP").textContent = ip;
-
-        // 取得當前時間
-        const now = new Date();
-        document.getElementById("currentTime").textContent = now.toLocaleString();
-
-        // 綁定打卡按鈕
-        document.getElementById("checkinBtn").onclick = async () => {
-          const payload = {
-            userId: profile.userId,
-            userName: profile.displayName,
-            ip: ip,
-            datetime: now.toISOString()
-          };
-
-          try {
-            const res = await fetch(GAS_ENDPOINT, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload)
-            });
-            const text = await res.text();
-            Swal.fire("打卡完成", text, "success");
-          } catch(err) {
-            console.error(err);
-            Swal.fire("打卡失敗", err, "error");
-          }
-        };
-
-      } catch(err) {
-        console.error("LIFF 初始化失敗", err);
-        alert("LINE 資料尚未準備好，請在 LINE 內開啟此頁面。");
-      }
+    async function getIP() {
+      const res = await fetch("https://api.ipify.org?format=json");
+      const data = await res.json();
+      return data.ip;
     }
 
-    window.onload = initLiff;
+    async function main() {
+      await liff.init({ liffId: "YOUR_LIFF_ID" });
+
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+
+      const profile = await liff.getProfile();
+
+      const now = new Date();
+      const date = now.toISOString().split("T")[0];
+      const time = now.toTimeString().split(" ")[0];
+
+      const ip = await getIP();
+
+      const payload = {
+        userId: profile.userId,
+        displayName: profile.displayName,
+        date: date,
+        time: time,
+        ip: ip
+      };
+
+      await fetch("https://script.google.com/macros/s/AKfycbxdHOQ131l2Uhu8EWAk-Tb7SB24g8j7gDSbKfB8eztB3srtViL1S-HepftFHMsxpV47/exec", {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" }
+      });
+
+      document.body.innerHTML = "<h2>資料已成功寫入！</h2>";
+    }
+
+    main();
   </script>
 </body>
 </html>
+
 
 
 
