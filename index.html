@@ -1,84 +1,54 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>LIFF Logger 即時列表</title>
+  <title>LIFF 打卡</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-  <h2>LIFF 資料紀錄範例</h2>
-  <button id="sendBtn">送出資料</button>
-  <h3>目前資料列表</h3>
-  <ul id="dataList"></ul>
+  <button onclick="sendDataToBot()">打卡</button>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyaURi1kllBOEOMnswKKzAnXK7YBCnl4YATKzSsS-BfVjJ00uEDntt4nyNEHEwfIHVC/exec";
-
-    async function main() {
+    async function sendDataToBot() {
       await liff.init({ liffId: "2008504718-nmXP0WRV" });
-      if (!liff.isLoggedIn()) liff.login();
-      await loadData(); // 頁面載入就抓資料
+
+      const profile = await liff.getProfile();
+
+      // 取得使用者 IP
+      const ipRes = await fetch("https://api.ipify.org?format=json");
+      const ipData = await ipRes.json();
+
+      const now = new Date();
+      const payload = {
+        userId: profile.userId,
+        displayName: profile.displayName,
+        date: now.toLocaleDateString(),
+        time: now.toLocaleTimeString(),
+        ip: ipData.ip
+      };
+
+      // 傳送資料到 BOT Webhook
+      await fetch("https://script.google.com/macros/s/AKfycbxhpeCbm16OpxQfMSe6gfL0E2335BVAD-_lCYOpUzGquCBTI8Fe02wvYF9YsrOWgH0t/exec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          events: [
+            {
+              type: "message",
+              message: { type: "text", text: JSON.stringify(payload) },
+              replyToken: "dummy_token"
+            }
+          ]
+        })
+      });
+
+      alert("資料已送出 BOT 並記錄到 Google Sheet");
     }
-
-    async function loadData() {
-      try {
-        const res = await fetch(GAS_URL);
-        const text = await res.text();
-        const result = JSON.parse(text);
-
-        const listEl = document.getElementById("dataList");
-        listEl.innerHTML = "";
-
-        if (result.status === "success") {
-          result.rows.forEach(row => {
-            const li = document.createElement("li");
-            li.textContent = `${row.userId} | ${row.displayName} | ${row.date} ${row.time} | IP: ${row.ip}`;
-            listEl.appendChild(li);
-          });
-        } else {
-          listEl.innerHTML = "無法取得資料";
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    async function sendData() {
-      try {
-        const profile = await liff.getProfile();
-        const ipRes = await fetch("https://api.ipify.org?format=json");
-        const ipData = await ipRes.json();
-        const payload = {
-          userId: profile.userId,
-          displayName: profile.displayName,
-          date: new Date().toLocaleDateString(),
-          time: new Date().toLocaleTimeString(),
-          ip: ipData.ip
-        };
-
-        const res = await fetch(GAS_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-
-        const text = await res.text();
-        const result = JSON.parse(text);
-        alert("資料回傳結果：" + JSON.stringify(result));
-
-        await loadData(); // 送出後即時刷新列表
-
-      } catch (err) {
-        alert("錯誤：" + err);
-        console.error(err);
-      }
-    }
-
-    document.getElementById("sendBtn").addEventListener("click", sendData);
-    main();
   </script>
 </body>
 </html>
+
+
+
 
 
 
