@@ -1,202 +1,170 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>奇可智能打卡系統</title>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-body { font-family: Arial, sans-serif; background-color: #f4f4f9; color: #333; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; height:100vh; margin:0; padding:10px;}
-h3 { font-size:24px; font-weight:600; color:#2c3e50; margin-bottom:10px;}
-button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
+body { font-family: Arial; background-color: #f4f4f9; color: #333; display:flex; flex-direction:column; align-items:center; padding:20px;}
+#currentInfo { text-align:center; margin-bottom:20px; }
+#currentInfo p { font-size:20px; margin:5px; }
+.status-box { display:inline-block; padding:5px 15px; border-radius:20px; font-weight:bold; font-size:16px; }
+.status-company { color:green; border:1px solid green; }
+.status-unknown { color:red; border:1px solid red; }
+button { margin:5px; padding:12px 24px; font-size:18px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
 #btnStart { background-color:#3498db; color:white;}
 #btnEnd { background-color:#e74c3c; color:white;}
-#btnMakeup { background-color:#f1c40f; color:white;}
-#buttonsWrapper { display:flex; justify-content:center; margin-bottom:20px; gap:10px; flex-wrap:nowrap;}
-
-#countdownWrapper {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  display: none;
-  margin-bottom: 20px;
-}
-#countdownText {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 14px;
-  font-weight: bold;
-  text-align: center;
-  white-space: nowrap;
-}
-#countdownCircle { transform: rotate(-90deg); }
-#countdownProgress {
-  stroke-dasharray: 219.911;
-  stroke-dashoffset: 0;
-  transition: stroke-dashoffset 1s linear;
-}
-
-#recordsWrapper {
-  width:90%;
-  max-width:500px;
-  border:1px solid #ccc;
-  padding:10px;
-  border-radius:10px;
-  background-color:#fff;
-  margin-top:10px;
-}
-#recordsWrapper h4 { margin:0 0 5px 0; text-align:center; }
-#recordsContent { font-size:14px; line-height:1.5; }
+#btnMakeUp { background-color:#f39c12; color:white;}
+#todayRecords { width:100%; max-width:400px; margin-top:20px; padding:10px; border-radius:10px; background:#fff; box-shadow:0 0 5px rgba(0,0,0,0.1);}
+#todayRecords ul { padding-left:20px; }
 </style>
 </head>
 <body>
-<h3>奇可智能打卡系統</h3>
 
-<div id="buttonsWrapper">
-  <button id="btnStart">上班打卡</button>
-  <button id="btnEnd">下班打卡</button>
-  <button id="btnMakeup">補打卡</button>
+<h3 id="greeting">您好</h3>
+
+<div id="currentInfo">
+<p id="currentDate">正在獲取現在時刻...</p>
+<p id="ipStatus">檢測中...</p>
 </div>
 
-<div id="countdownWrapper">
-  <svg id="countdownCircle" width="80" height="80">
-    <circle cx="40" cy="40" r="35" stroke="#ddd" stroke-width="10" fill="none"/>
-    <circle id="countdownProgress" cx="40" cy="40" r="35" stroke="#3498db" stroke-width="10" fill="none" stroke-linecap="round"/>
-  </svg>
-  <div id="countdownText">打卡中</div>
+<div>
+<button id="btnStart">上班打卡</button>
+<button id="btnEnd">下班打卡</button>
+<button id="btnMakeUp">補打卡</button>
 </div>
 
-<div id="recordsWrapper">
-  <h4>今日打卡紀錄</h4>
-  <div id="recordsContent">載入中...</div>
+<div id="todayRecords">
+<ul id="recordsList"></ul>
 </div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyECsWJpPkCdzIJyAklYtds36UARGpxzrcMkgU6K18OUepLSqrpd8gupkOCSNark9Gf/exec";
-const COMPANY_IPS = ["114.34.60.48","27.240.227.0"]; // 公司 IP
-let userProfile = null;
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyECsWJpPkCdzIJyAklYtds36UARGpxzrcMkgU6K18OUepLSqrpd8gupkOCSNark9Gf/exec"; // Google Apps Script POST URL
+const COMPANY_IPS = ["192.168.1.1","192.168.1.2"]; // 多個公司IP
 
-// 取得用戶 IP
-async function getCurrentIP(){
-  try {
-    const res = await fetch("https://api.ipify.org?format=json");
-    const data = await res.json();
-    return data.ip;
-  } catch(e){ return ""; }
+function getCurrentTimeText(){ return new Date().toLocaleString("zh-TW"); }
+function updateCurrentTime(){ document.getElementById("currentDate").textContent = getCurrentTimeText(); }
+setInterval(updateCurrentTime,1000);
+updateCurrentTime();
+
+async function detectIP(){
+    try{
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        const ipEl = document.getElementById("ipStatus");
+        if(COMPANY_IPS.includes(data.ip)){
+            ipEl.innerHTML = `<span class="status-box status-company">已連線公司網路</span>`;
+        } else {
+            ipEl.innerHTML = `<span class="status-box status-unknown">不明連線</span>`;
+        }
+        return data.ip;
+    }catch(e){
+        document.getElementById("ipStatus").textContent="IP 取得失敗";
+        return "";
+    }
 }
 
-// 取得今日公司 IP 打卡紀錄
-async function loadTodayRecords(){
-  const res = await fetch(`${API_ENDPOINT}?action=todayRecords`);
-  const data = await res.json();
-  const filtered = data.records.filter(r=>COMPANY_IPS.includes(r.ip));
-  let content = filtered.length? filtered.map(r=>`${r.status} ${r.time}`).join("<br>"):"無打卡紀錄";
-  document.getElementById("recordsContent").innerHTML = content;
-}
-
-// 發送打卡
 async function performClockIn(data){
-  const res = await fetch(API_ENDPOINT, { method:"POST", body: JSON.stringify(data) });
-  return await res.json();
+    const res = await fetch(API_ENDPOINT,{ method:"POST", body: JSON.stringify(data) });
+    return await res.json();
 }
 
-// 打卡倒數圓形動畫
 async function clockIn(status){
-  const countdownWrapper = document.getElementById("countdownWrapper");
-  const countdownProgress = document.getElementById("countdownProgress");
-  const countdownText = document.getElementById("countdownText");
-  countdownWrapper.style.display="block";
-  countdownText.style.display="block";
+    const profile = await liff.getProfile();
+    const userId = profile.userId;
+    const displayName = profile.displayName;
+    const ip = await detectIP();
 
-  const ip = await getCurrentIP();
-  if(!COMPANY_IPS.includes(ip)){
-    countdownWrapper.style.display="none";
-    Swal.fire({ icon:'error', title:'連線錯誤', text:'請確認公司網路' });
-    return;
-  }
-
-  const clockPromise = performClockIn({ userId:userProfile.userId, displayName:userProfile.displayName, status, ip });
-  const total = 3, r=35, circleLength = 2*Math.PI*r;
-  let elapsed=0;
-  countdownProgress.style.strokeDasharray=circleLength;
-  countdownProgress.style.strokeDashoffset=0;
-  const interval = setInterval(()=>{
-    elapsed++;
-    countdownProgress.style.strokeDashoffset = circleLength*(elapsed/total);
-  },1000);
-
-  const response = await clockPromise;
-  setTimeout(()=>clearInterval(interval), total*1000);
-
-  setTimeout(()=>{
-    countdownWrapper.style.display="none";
+    const data = { ip, userId, displayName, status };
+    const response = await performClockIn(data);
     if(response.message==="寫入成功"){
-      Swal.fire({ icon:'success', title:'成功打卡', html:`<strong>時間:</strong> ${response.date} ${response.time}`, timer:2000, showConfirmButton:false });
-      loadTodayRecords();
+        Swal.fire({icon:'success', title:'🎉 打卡成功', html:`${status} 時間：${response.date} ${response.time}`, timer:2000, showConfirmButton:false});
+        loadTodayRecords(userId);
     } else {
-      Swal.fire({ icon:'error', title:'打卡失敗', text:'請重試', timer:2000, showConfirmButton:false });
+        Swal.fire({icon:'error', title:'😥 打卡失敗', timer:2000, showConfirmButton:false});
     }
-  }, total*1000);
 }
 
-// 補打卡彈窗
-function makeupClockIn(){
-  Swal.fire({
-    title: '補打卡設定',
-    html: `
-      <div style="margin-bottom:10px;">日期: <input type="date" id="swal-date"></div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-        時間: <input type="time" id="swal-time" style="flex:1">
-        動態:
-        <select id="swal-status" style="flex:1">
-          <option value="上班">上班</option>
-          <option value="下班">下班</option>
-        </select>
-      </div>
-    `,
-    showCancelButton:true,
-    confirmButtonText:'完成',
-    cancelButtonText:'取消',
-    preConfirm: ()=>{
-      const date = document.getElementById("swal-date").value;
-      const time = document.getElementById("swal-time").value;
-      const status = document.getElementById("swal-status").value;
-      if(!date||!time) Swal.showValidationMessage("請選擇日期及時間");
-      return {date,time,status};
+async function makeUpClockIn(){
+    const profile = await liff.getProfile();
+    const userId = profile.userId;
+    const displayName = profile.displayName;
+
+    const today = new Date().toISOString().slice(0,10);
+    const nowTime = new Date().toTimeString().slice(0,5);
+
+    const { value: formValues } = await Swal.fire({
+        title:'補打卡設定',
+        html:
+            `<label style="font-weight:bold;">日期:</label><input type="date" id="swal-date" class="swal2-input" value="${today}">`+
+            `<label style="font-weight:bold;">時間:</label><input type="time" id="swal-time" class="swal2-input" value="${nowTime}">`+
+            `<label style="font-weight:bold; font-size:20px;">動態:</label>`+
+            `<select id="swal-status" class="swal2-input" style="font-size:22px; font-weight:bold;">
+                <option value="上班">上班</option>
+                <option value="下班">下班</option>
+             </select>`,
+        focusConfirm:false,
+        showCancelButton:true,
+        confirmButtonText:'完成',
+        preConfirm:()=>({
+            date: document.getElementById('swal-date').value,
+            time: document.getElementById('swal-time').value,
+            status: document.getElementById('swal-status').value
+        })
+    });
+
+    if(!formValues) return;
+
+    const ip = COMPANY_IPS[0]; // 補打卡預設公司 IP
+    const data = {
+        ip, userId, displayName, status: formValues.status,
+        customDate: formValues.date, customTime: formValues.time,
+        note: "補打卡"
+    };
+
+    const response = await performClockIn(data);
+    if(response.message==="寫入成功"){
+        Swal.fire({icon:'success', title:'🎉 補打卡成功', html:`時間：${data.customDate} ${data.customTime}`, timer:2000, showConfirmButton:false});
+        loadTodayRecords(userId);
+    }else{
+        Swal.fire({icon:'error', title:'😥 補打卡失敗', timer:2000, showConfirmButton:false});
     }
-  }).then(async(result)=>{
-    if(result.isConfirmed){
-      const ip = await getCurrentIP();
-      const data = {userId:userProfile.userId, displayName:userProfile.displayName, status:result.value.status, ip, makeup:true, date:result.value.date, time:result.value.time};
-      const res = await performClockIn(data);
-      if(res.message==="寫入成功"){
-        Swal.fire({icon:'success', title:'補打卡成功', text:'待主管批核生效', timer:2000, showConfirmButton:false});
-        loadTodayRecords();
-      } else {
-        Swal.fire({icon:'error', title:'補打卡失敗', timer:2000, showConfirmButton:false});
-      }
-    }
-  });
 }
 
-// LIFF 初始化
+async function loadTodayRecords(userId){
+    const today = new Date().toISOString().slice(0,10);
+    const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${userId}&date=${today}`);
+    const records = await res.json();
+    const ul = document.getElementById("recordsList");
+    ul.innerHTML="";
+    records.forEach(r=>{
+        const li = document.createElement("li");
+        li.textContent = `${r.status} - ${r.time}${r.note ? ' ('+r.note+')' : ''}`;
+        ul.appendChild(li);
+    });
+}
+
 async function main(){
-  await liff.init({ liffId:"2008504718-nmXP0WRV" });
-  if(!liff.isLoggedIn()) liff.login();
-  userProfile = await liff.getProfile();
-  document.getElementById("btnStart").onclick = ()=>clockIn("上班");
-  document.getElementById("btnEnd").onclick = ()=>clockIn("下班");
-  document.getElementById("btnMakeup").onclick = ()=>makeupClockIn();
-  loadTodayRecords();
+    await liff.init({ liffId:"2008504718-nmXP0WRV" });
+    if(!liff.isLoggedIn()) liff.login();
+    const profile = await liff.getProfile();
+    document.getElementById("greeting").textContent = `${profile.displayName} 您好`;
+
+    document.getElementById("btnStart").onclick = ()=>clockIn("上班");
+    document.getElementById("btnEnd").onclick = ()=>clockIn("下班");
+    document.getElementById("btnMakeUp").onclick = makeUpClockIn;
+
+    await detectIP();
+    loadTodayRecords(profile.userId);
 }
 
 window.onload = main;
 </script>
 </body>
 </html>
+
 
 
 
