@@ -6,195 +6,153 @@
 <title>奇可智能打卡系統</title>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
 <style>
-body { font-family: Arial, sans-serif; background-color: #f4f4f9; color:#333; display:flex; flex-direction:column; align-items:center; padding:10px;}
-h3 { font-size:24px; font-weight:600; color:#2c3e50; margin-bottom:10px;}
-button { margin:10px; padding:10px 20px; font-size:16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
+body { font-family: Arial; background-color: #f4f4f9; color: #333; display:flex; flex-direction:column; align-items:center; padding:10px;}
+h3 { font-size:24px; margin-bottom:10px;}
+#currentInfo, #todayRecords { width:100%; max-width:400px; margin-top:10px; padding:10px; border-radius:10px; background:#fff; box-shadow:0 0 5px rgba(0,0,0,0.1);}
+.status-box { display:inline-block; padding:5px 10px; border-radius:20px; font-weight:bold;}
+.status-company { color:green; border:1px solid green; }
+.status-unknown { color:red; border:1px solid red; }
+button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
 #btnStart { background-color:#3498db; color:white;}
 #btnEnd { background-color:#e74c3c; color:white;}
-#btnQuery { background-color:#27ae60; color:white;}
-button:disabled { opacity:0.5; cursor:not-allowed; }
+#btnMakeUp { background-color:#f39c12; color:white;}
 </style>
 </head>
-
 <body>
-<h3>謝謝使用奇可智能打卡系統</h3>
+<h3 id="greeting">您好</h3>
+<div id="currentInfo">
 <p id="currentDate">正在獲取現在時刻...</p>
+<p>連線狀態: <span id="ipStatus">檢測中...</span></p>
+</div>
 
 <div>
-  <button id="btnStart">上班打卡</button>
-  <button id="btnEnd">下班打卡</button>
-  <button id="btnQuery">查詢今日紀錄</button>
+<button id="btnStart">上班打卡</button>
+<button id="btnEnd">下班打卡</button>
+<button id="btnMakeUp">補打卡</button>
+</div>
+
+<div id="todayRecords">
+<h4>今日打卡紀錄</h4>
+<ul id="recordsList"></ul>
 </div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyefPKlbEbNMGFAX4yidJVgUexAOkbTInC_Yckjfmy1zRjH061o2_ivkwv4_yrFdmrs/exec";
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyrLQZv08u10DESc-Bppil1xBu86sU84dEz6oBBlJvBNkr-vdNiwkKvFnCJ77IKVEE/exec"; // Google Apps Script POST URL
+const COMPANY_IPS = ["114.34.60.48","27.240.227.0"]; // 多個公司IP
 
-// ----------------------
-// 每秒更新時鐘
-// ----------------------
-setInterval(() => {
-  document.getElementById("currentDate").textContent =
-    "現在時刻: " + new Date().toLocaleString("zh-TW");
-}, 1000);
+function getCurrentTimeText(){ return new Date().toLocaleString("zh-TW"); }
+function updateCurrentTime(){ document.getElementById("currentDate").textContent = "現在時刻: " + getCurrentTimeText(); }
+setInterval(updateCurrentTime,1000);
+updateCurrentTime();
 
-// ----------------------
-// 取得 IP
-// ----------------------
-async function getIP() {
-  try {
-    const res = await fetch("https://api.ipify.org?format=json");
-    const data = await res.json();
-    return data.ip;
-  } catch {
-    return "";
-  }
-}
-
-// ----------------------
-// 呼叫 GAS API
-// ----------------------
-async function callAPI(body) {
-  const res = await fetch(API_ENDPOINT, {
-    method: "POST",
-    body: JSON.stringify(body)
-  });
-  return await res.json();
-}
-
-// ----------------------
-// 按鈕鎖定管理
-// ----------------------
-function isLocked(status) {
-  const lock = JSON.parse(localStorage.getItem(status + "_lock") || "null");
-  if (!lock) return false;
-  const today = new Date().toISOString().split("T")[0];
-  return lock.date === today;
-}
-
-function setLocked(status) {
-  const today = new Date().toISOString().split("T")[0];
-  localStorage.setItem(status + "_lock", JSON.stringify({ date: today }));
-}
-
-// ----------------------
-// 打卡主程式
-// ----------------------
-async function clockIn(status) {
-  const profile = await liff.getProfile();
-  const userId = profile.userId;
-  const displayName = profile.displayName;
-  const ip = await getIP();
-
-  const result = await callAPI({ status, ip, userId, displayName });
-
-  if (status === "查詢") {
-    const rec = result.records || [];
-    Swal.fire({
-      icon: "info",
-      title: "今日打卡紀錄",
-      html: rec.length ? rec.join("<br>") : "無紀錄",
-      confirmButtonText: "OK"
-    });
-    return;
-  }
-
-  if (result.message === "距離上班不足 30 分鐘，請晚點再打卡") {
-    Swal.fire({
-      icon: "warning",
-      title: "尚不能下班打卡",
-      html: "距離上班時間未達 30 分鐘，請稍後再試",
-      confirmButtonText: "OK"
-    });
-    return;
-  }
-
-  if (result.message === "寫入成功" || result.message === "已打卡") {
-    Swal.fire({
-      icon: "success",
-      title: "打卡成功",
-      html: `${result.date} ${result.time}`,
-      timer: 2000
-    });
-
-    if (status === "上班") {
-      setLocked("上班");
-      document.getElementById("btnStart").disabled = true;
+async function detectIP(){
+    try{
+        const res = await fetch("https://api.ipify.org?format=json");
+        const data = await res.json();
+        const ipEl = document.getElementById("ipStatus");
+        if(COMPANY_IPS.includes(data.ip)){
+            ipEl.innerHTML = `<span class="status-box status-company">已連線公司網路 (${data.ip})</span>`;
+        } else {
+            ipEl.innerHTML = `<span class="status-box status-unknown">不明連線 (${data.ip})</span>`;
+        }
+        return data.ip;
+    }catch(e){
+        document.getElementById("ipStatus").textContent="IP 取得失敗";
+        return "";
     }
-    if (status === "下班") {
-      setLocked("下班");
-      document.getElementById("btnEnd").disabled = true;
+}
+
+async function performClockIn(data){
+    const res = await fetch(API_ENDPOINT,{ method:"POST", body: JSON.stringify(data) });
+    return await res.json();
+}
+
+async function clockIn(status){
+    const profile = await liff.getProfile();
+    const userId = profile.userId;
+    const displayName = profile.displayName;
+    const ip = await detectIP();
+
+    const data = { ip, userId, displayName, status };
+    const response = await performClockIn(data);
+    if(response.message==="寫入成功"){
+        Swal.fire({icon:'success', title:'🎉 打卡成功', html:`${status} 時間：${response.date} ${response.time}`, timer:2000, showConfirmButton:false});
+        loadTodayRecords(userId);
+    } else {
+        Swal.fire({icon:'error', title:'😥 打卡失敗', timer:2000, showConfirmButton:false});
     }
-    return;
-  }
+}
 
-  if (result.ipStatus === "異地打卡請忽略") {
-    Swal.fire({
-      icon: "warning",
-      title: "異地打卡",
-      html: "IP 不符，將不列入正式打卡紀錄<br>（仍已寫入系統）",
-      confirmButtonText: "OK"
+async function makeUpClockIn(){
+    const profile = await liff.getProfile();
+    const userId = profile.userId;
+    const displayName = profile.displayName;
+
+    const today = new Date().toISOString().slice(0,10);
+    const nowTime = new Date().toTimeString().slice(0,5);
+
+    const { value: formValues } = await Swal.fire({
+        title:'補打卡設定',
+        html:
+            `<input type="date" id="swal-date" class="swal2-input" value="${today}">`+
+            `<input type="time" id="swal-time" class="swal2-input" value="${nowTime}">`+
+            `<select id="swal-status" class="swal2-input">
+                <option value="上班">上班</option>
+                <option value="下班">下班</option>
+             </select>`,
+        focusConfirm:false,
+        showCancelButton:true,
+        preConfirm:()=>({
+            date: document.getElementById('swal-date').value,
+            time: document.getElementById('swal-time').value,
+            status: document.getElementById('swal-status').value
+        })
     });
-    return;
-  }
 
-  Swal.fire({
-    icon: "error",
-    title: "打卡失敗",
-    text: result.message || "請稍後再試"
-  });
+    if(!formValues) return;
+
+    const ip = COMPANY_IPS[0]; // 補打卡預設公司 IP
+    const data = {
+        ip, userId, displayName, status: formValues.status,
+        customDate: formValues.date, customTime: formValues.time,
+        note: "補打卡"
+    };
+
+    const response = await performClockIn(data);
+    if(response.message==="寫入成功"){
+        Swal.fire({icon:'success', title:'🎉 補打卡成功', html:`時間：${data.customDate} ${data.customTime}`, timer:2000, showConfirmButton:false});
+        loadTodayRecords(userId);
+    }else{
+        Swal.fire({icon:'error', title:'😥 補打卡失敗', timer:2000, showConfirmButton:false});
+    }
 }
 
-// ----------------------
-// 初始化按鈕
-// ----------------------
-function initButtons() {
-  const btnStart = document.getElementById("btnStart");
-  const btnEnd = document.getElementById("btnEnd");
-  const btnQuery = document.getElementById("btnQuery");
-
-  btnStart.disabled = isLocked("上班");
-  btnEnd.disabled = isLocked("下班");
-
-  btnStart.onclick = async () => await clockIn("上班");
-  btnEnd.onclick = async () => await clockIn("下班");
-  btnQuery.onclick = async () => await clockIn("查詢");
+async function loadTodayRecords(userId){
+    const today = new Date().toISOString().slice(0,10);
+    const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${userId}&date=${today}`);
+    const records = await res.json();
+    const ul = document.getElementById("recordsList");
+    ul.innerHTML="";
+    records.forEach(r=>{
+        const li = document.createElement("li");
+        li.textContent = `${r.status} - ${r.time}${r.note ? ' ('+r.note+')' : ''}`;
+        ul.appendChild(li);
+    });
 }
 
-// ----------------------
-// 每分鐘檢查下班打卡是否可用
-// ----------------------
-async function checkEndButton() {
-  const btnEnd = document.getElementById("btnEnd");
-  if (btnEnd.disabled) return;
+async function main(){
+    await liff.init({ liffId:"2008504718-nmXP0WRV" });
+    if(!liff.isLoggedIn()) liff.login();
+    const profile = await liff.getProfile();
+    document.getElementById("greeting").textContent = `${profile.displayName} 您好`;
 
-  const profile = await liff.getProfile();
-  const userId = profile.userId;
-  const displayName = profile.displayName;
-  const ip = await getIP();
+    document.getElementById("btnStart").onclick = ()=>clockIn("上班");
+    document.getElementById("btnEnd").onclick = ()=>clockIn("下班");
+    document.getElementById("btnMakeUp").onclick = makeUpClockIn;
 
-  // 後端檢查是否可以下班打卡（30 分鐘限制）
-  const result = await callAPI({ status: "下班", ip, userId, displayName });
-  if (result.message === "距離上班不足 30 分鐘，請晚點再打卡") {
-    btnEnd.disabled = true;
-    btnEnd.textContent = "下班打卡 (尚不可用)";
-  } else {
-    btnEnd.disabled = isLocked("下班");
-    btnEnd.textContent = "下班打卡";
-  }
-}
-
-// ----------------------
-// 主程式
-// ----------------------
-async function main() {
-  await liff.init({ liffId: "2008504718-nmXP0WRV" });
-  if (!liff.isLoggedIn()) liff.login();
-
-  initButtons();
-  checkEndButton(); // 初始化檢查一次
-  setInterval(checkEndButton, 60000); // 每分鐘檢查一次
+    await detectIP();
+    loadTodayRecords(profile.userId);
 }
 
 window.onload = main;
