@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -9,15 +10,17 @@
 <style>
 body { font-family: Arial, sans-serif; background-color: #f4f4f9; color: #333; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; height:100vh; margin:0; padding:10px;}
 h3 { font-size:24px; font-weight:600; color:#2c3e50; margin-bottom:10px;}
-#currentInfo { display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top:5px; width:100%;}
+#currentInfo { display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top:5px; width:100%; }
 #currentInfo p { font-size:16px; margin:5px 0; color:#34495e; font-weight:500; text-align:center;}
 button { margin:10px; padding:10px 20px; font-size:16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
 #btnStart { background-color:#3498db; color:white;}
 #btnEnd { background-color:#e74c3c; color:white;}
+#btnMakeUp { background-color:#f39c12; color:white;}
 #countdownWrapper { margin-top:10px; width:100%; background-color:#ddd; height:40px; border-radius:20px; display:flex; justify-content:center; align-items:center; position:relative; overflow:hidden; display:none;}
 #countdownBar { height:100%; background-color:#3498db; border-radius:20px; width:100%; position:absolute; transition:width 1s linear;}
 #countdownText { position:relative; z-index:2; font-size:18px; font-weight:bold; color:white;}
 #resultText { display:none; position:relative; z-index:3; font-size:18px; font-weight:bold; text-align:center;}
+#todayRecords { margin-top:10px; font-size:16px; }
 @keyframes pulseFade {0% {opacity:1; transform:scale(1);} 50% {opacity:0.5; transform:scale(1.05);} 100% {opacity:1; transform:scale(1);} }
 .pulsingText {color:#3498db !important; animation:pulseFade 1.5s infinite;}
 </style>
@@ -30,15 +33,19 @@ button { margin:10px; padding:10px 20px; font-size:16px; border-radius:8px; bord
 <div>
 <button id="btnStart">上班打卡</button>
 <button id="btnEnd">下班打卡</button>
+<button id="btnMakeUp">補打卡</button>
 </div>
 <div id="countdownWrapper">
 <div id="countdownBar"></div>
 <div id="countdownText">打卡中，請稍候...</div>
 <div id="resultText"></div>
 </div>
+<div id="todayRecords"></div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxDEP-6v5ojyNVa6ji2MdiyjkcmjB1MrjOTX_dttHe4NSdm23uo1fVxVdMbJXi9ZJ2U/exec";
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZROnfUGDFvmmjPtzaKWJ73Jwo_h1c1ahxqZLVdqY9OVGMvjQIaoh6MutBuydumpZi/exec";
+let todayRecord = { 上班:null, 下班:null };
+let lastDateCheck = new Date().toLocaleDateString();
 
 function getCurrentTimeText() {
     const now = new Date();
@@ -59,7 +66,12 @@ async function performClockIn(data) {
     return await res.json();
 }
 
-async function clockIn(status) {
+async function clockIn(status, isMakeUp=false) {
+    if (!isMakeUp && todayRecord[status]) {
+        Swal.fire({icon:'warning', title:'已打過卡', text:`今日${status}已打卡，無法重複打卡。`});
+        return;
+    }
+
     const wrapper = document.getElementById("countdownWrapper");
     const bar = document.getElementById("countdownBar");
     const text = document.getElementById("countdownText");
@@ -78,7 +90,7 @@ async function clockIn(status) {
     const ipRes = await fetch("https://api.ipify.org?format=json").then(r=>r.json()).catch(()=>({ip:""}));
     const ip = ipRes.ip || "";
 
-    const clockPromise = performClockIn({ ip, userId, displayName, status });
+    const clockPromise = performClockIn({ ip, userId, displayName, status, isMakeUp });
 
     let duration = 3;
     let width = 100;
@@ -99,9 +111,12 @@ async function clockIn(status) {
     resultEl.style.display = "block";
 
     if (response.message === "寫入成功") {
-        resultEl.textContent = `😀 打卡成功! 時間: ${response.time}`;
+        todayRecord[status] = response.time;
+        updateTodayRecords();
+        resultEl.textContent = `😀 ${status}打卡成功! 時間: ${response.time}`;
         resultEl.style.color = "#4CAF50";
         Swal.fire({ icon: 'success', title: '🎉 打卡成功！', html: `<strong>打卡時間：</strong>${response.date} ${response.time}`, showConfirmButton: false, timer:2000 });
+        updateButtonLock();
     } else {
         resultEl.textContent = "😥 打卡失敗，請重試";
         resultEl.style.color = "red";
@@ -109,14 +124,65 @@ async function clockIn(status) {
     }
 }
 
+function updateTodayRecords() {
+    const el = document.getElementById("todayRecords");
+    el.innerHTML = `今日打卡紀錄：<br>上班：${todayRecord.上班||"尚未打卡"}<br>下班：${todayRecord.下班||"尚未打卡"}`;
+}
+
+function updateButtonLock() {
+    document.getElementById("btnStart").disabled = todayRecord.上班 && todayRecord.下班 ? true : false;
+    document.getElementById("btnEnd").disabled = todayRecord.上班 && todayRecord.下班 ? true : false;
+}
+
+function autoResetAtMidnight() {
+    const nowDate = new Date().toLocaleDateString();
+    if (nowDate !== lastDateCheck) {
+        lastDateCheck = nowDate;
+        todayRecord = { 上班:null, 下班:null };
+        updateTodayRecords();
+        updateButtonLock();
+        console.log("已自動刷新，按鈕解鎖新的一天");
+    }
+}
+setInterval(autoResetAtMidnight, 60*1000);
+
 async function main() {
     await liff.init({ liffId: "2008504718-nmXP0WRV" });
     if (!liff.isLoggedIn()) liff.login();
 
     document.getElementById("btnStart").onclick = () => clockIn("上班");
     document.getElementById("btnEnd").onclick = () => clockIn("下班");
+    document.getElementById("btnMakeUp").onclick = async () => {
+        const { value: formValues } = await Swal.fire({
+            title: '補打卡',
+            html:
+              '<input id="swal-date" class="swal2-input" placeholder="日期 yyyy-mm-dd">' +
+              '<input id="swal-time" class="swal2-input" placeholder="時間 HH:mm:ss">' +
+              '<select id="swal-status" class="swal2-input"><option value="上班">上班</option><option value="下班">下班</option></select>',
+            focusConfirm: false,
+            preConfirm: () => {
+              return {
+                date: document.getElementById('swal-date').value,
+                time: document.getElementById('swal-time').value,
+                status: document.getElementById('swal-status').value
+              }
+            }
+        });
+        if (formValues) {
+            const profile = await liff.getProfile();
+            await performClockIn({
+                ip: '',
+                userId: profile.userId,
+                displayName: profile.displayName,
+                status: formValues.status,
+                date: formValues.date,
+                time: formValues.time,
+                isMakeUp: true
+            });
+            Swal.fire('完成', '補打卡成功', 'success');
+        }
+    };
 }
-
 window.onload = main;
 </script>
 </body>
