@@ -43,8 +43,8 @@ button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; curso
 <div id="todayRecords">今日打卡紀錄：</div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycby-xkN5mEuekciLdnzjom4XwnqBvykCno9nj8PRcTT0IENajwZyprLNZ3XwuHMkypaT/exec";
-const COMPANY_IPS = ["114.34.60.48","27.240.227.0"]; // 公司IP清單
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbzcGgXVmU9HOVerXtWuQQwpDMFPGrjpUYzrJOGufiYjQn9aRmGXyjAGLN8y5IxlWA0_/exec";
+const COMPANY_IPS = ["114.34.60.48"]; // 公司IP清單
 
 async function getIP() {
     try {
@@ -129,7 +129,7 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         } else {
             Swal.fire({
                 icon: "error",
-                title: "😥 今日以打卡",
+                title: "😥 今日已打卡",
                 html: "重複打卡，請確認",
                 showConfirmButton: false,
                 backdrop: "rgba(0,0,0,0.5)"
