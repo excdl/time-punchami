@@ -1,55 +1,57 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>LIFF 打卡</title>
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <meta charset="UTF-8">
+  <title>LIFF 時間打卡範例</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-<h1>打卡系統</h1>
-<button id="clock-in">上班打卡</button>
-<button id="clock-out">下班打卡</button>
+  <h1>LIFF 時間打卡</h1>
+  <button id="punchBtn">打卡</button>
 
-<script>
-let userProfile = null;
-const SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzVC7we_LY0_LTO2Eho-AyF5pp9k4rB2eU4vJz1-PBC5QpGaPEeK_0Tf69O2uD68yMQ/exec";
+  <script>
+    const liffId = "2008504718-nmXP0WRV";  // 你自己的 LIFF ID
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxeT7meD2V6-35YtkhRldOPMdadHzSdYaU4OnGU4-6NSWYpa3Hg4WG43plEXIl1Ky5R/exec";
 
-async function initLiff() {
-    await liff.init({ liffId: "2008504718-nmXP0WRV" });
-    if (!liff.isLoggedIn()) liff.login();
-    else userProfile = await liff.getProfile();
-}
+    // 初始化 LIFF
+    liff.init({ liffId })
+      .then(() => {
+        console.log("LIFF init success");
+      })
+      .catch(err => console.error("LIFF init failed", err));
 
-async function clock(type) {
-    if (!userProfile) return alert("尚未取得用戶資訊");
-    const record = {
-        userId: userProfile.userId,
-        name: userProfile.displayName,
-        date: new Date().toLocaleDateString(),
-        time: new Date().toLocaleTimeString(),
-        type: type
-    };
-    try {
-        const res = await fetch(SHEET_API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(record)
-        });
-        const result = await res.json();
-        if (result.status === "success") alert(type + "打卡成功！");
-        else alert("打卡失敗: " + result.message);
-    } catch(err) {
-        alert("打卡失敗: " + err.message);
-    }
-}
+    document.getElementById("punchBtn").addEventListener("click", async () => {
+      const profile = await liff.getProfile();
+      const now = new Date();
+      const timeStr = now.getFullYear() + "-" +
+                      String(now.getMonth()+1).padStart(2,'0') + "-" +
+                      String(now.getDate()).padStart(2,'0') + " " +
+                      String(now.getHours()).padStart(2,'0') + ":" +
+                      String(now.getMinutes()).padStart(2,'0') + ":" +
+                      String(now.getSeconds()).padStart(2,'0');
 
-document.getElementById("clock-in").addEventListener("click", ()=>clock("上班"));
-document.getElementById("clock-out").addEventListener("click", ()=>clock("下班"));
+      const payload = {
+        name: profile.displayName,
+        time: timeStr
+      };
 
-initLiff();
-</script>
+      fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if(data.status === "ok") alert("打卡成功!");
+        else alert("打卡失敗: " + JSON.stringify(data));
+      })
+      .catch(err => alert("網路錯誤: " + err));
+    });
+  </script>
 </body>
 </html>
+
+
 
 
 
