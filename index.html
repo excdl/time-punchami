@@ -1,83 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <title>LIFF Debug</title>
+  <meta charset="utf-8">
+  <title>LIFF Logger</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-  <h2 id="status">資料紀錄中...</h2>
-  <pre id="log"></pre>
+  <h2>LIFF 資料紀錄範例</h2>
+  <button id="sendBtn">送出資料</button>
 
   <script>
-    function log(msg) {
-      document.getElementById("log").textContent += msg + "\n";
-    }
-
-    async function getIP() {
-      try {
-        log("取得 IP 中...");
-        const res = await fetch("https://api.ipify.org?format=json");
-        const data = await res.json();
-        log("IP：" + data.ip);
-        return data.ip;
-      } catch (err) {
-        log("IP 錯誤：" + err);
-        throw err;
-      }
-    }
-
     async function main() {
+      await liff.init({ liffId: "2008504718-nmXP0WRV" });
+      if (!liff.isLoggedIn()) liff.login();
+    }
+
+    async function sendData() {
       try {
-        log("開始 liff.init...");
-        await liff.init({ liffId: "2008504718-nmXP0WRV" });
-        log("LIFF 初始化成功");
-
-        if (!liff.isLoggedIn()) {
-          log("未登入，執行 login");
-          liff.login();
-          return;
-        }
-
-        log("取得 Profile...");
         const profile = await liff.getProfile();
-        log("Profile：" + JSON.stringify(profile));
 
-        const now = new Date();
-        const date = now.toISOString().split("T")[0];
-        const time = now.toTimeString().split(" ")[0];
-
-        const ip = await getIP();
+        // 取得 IP
+        const ipRes = await fetch("https://api.ipify.org?format=json");
+        const ipData = await ipRes.json();
+        const userIp = ipData.ip;
 
         const payload = {
           userId: profile.userId,
           displayName: profile.displayName,
-          date: date,
-          time: time,
-          ip: ip
+          date: new Date().toLocaleDateString(),
+          time: new Date().toLocaleTimeString(),
+          ip: userIp
         };
 
-        log("送出資料到 GAS...");
-        const res = await fetch("https://script.google.com/macros/s/AKfycbxocrMGnfhRObrCjVe0zkGItd_IliWYUXaDXdcTEphh7siJwC0ZikGSe6glNoRatUA1/exec", {
+        const res = await fetch("https://script.google.com/macros/s/AKfycbxP0sf5UgLpTFEtGmU9Tqrexg9paZahR3Qg0_J6lxz4xKdzU0Rph6ugabZ1MkRCbcct/exec", {
           method: "POST",
-          body: JSON.stringify(payload),
-          headers: { "Content-Type": "application/json" }
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
         });
 
-        const text = await res.text();
-        log("GAS 回應：" + text);
+        const result = await res.json();
+        alert("資料回傳結果：" + JSON.stringify(result));
 
-        document.getElementById("status").innerText = "資料已寫入！";
       } catch (err) {
-        log("錯誤發生：" + err);
-        document.getElementById("status").innerText = "錯誤，請查看下方 log";
+        alert("錯誤：" + err);
+        console.error(err);
       }
     }
+
+    document.getElementById("sendBtn").addEventListener("click", sendData);
 
     main();
   </script>
 </body>
 </html>
+
+
+
+
 
 
 
