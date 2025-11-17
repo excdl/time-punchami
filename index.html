@@ -1,56 +1,252 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <title>LIFF 時間打卡範例</title>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>謝謝使用奇可智能打卡系統</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+      margin: 0;
+      padding: 10px;
+    }
+
+    h3 {
+      font-size: 24px;
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 5px;
+    }
+
+    #currentInfo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin-top: 5px;
+      width: 100%;
+    }
+
+    #currentInfo p {
+      font-size: 16px;
+      margin: 10px 0;
+      color: #34495e;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    #ipAddress {
+      font-size: 16px;
+      font-weight: 500;
+      color: #34495e;
+      text-align: center;
+      width: 100%;
+    }
+
+    .specialIp, .unknownConnection {
+      border: 2px solid;
+      border-radius: 12px;
+      padding: 5px 10px;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .specialIp {
+      border-color: #2ecc71;
+      color: #2ecc71;
+      font-weight: bold;
+    }
+
+    .unknownConnection {
+      border-color: red;
+      color: red;
+      font-weight: bold;
+      animation: blink 2s infinite;
+    }
+
+    #countdownWrapper {
+      margin-top: 10px;
+      width: 100%;
+      background-color: #ddd;
+      height: 40px;
+      border-radius: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #countdownBar {
+      height: 100%;
+      background-color: #3498db;
+      border-radius: 20px;
+      width: 100%;
+      position: absolute;
+      transition: width 1s linear;
+    }
+
+    #countdownText {
+      position: relative;
+      z-index: 2;
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+    }
+
+    #resultText {
+      display: none;
+      position: relative;
+      z-index: 3;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes pulseFade {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.05); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .pulsingText {
+      color: #3498db !important;
+      animation: pulseFade 1.5s infinite;
+    }
+  </style>
 </head>
 <body>
-  <h1>LIFF 時間打卡</h1>
-  <button id="punchBtn">打卡</button>
+  <h3>謝謝使用奇可智能打卡系統</h3>
+  <div id="currentInfo">
+    <p id="ipAddress">正在獲取 IP 地址...</p>
+    <p id="currentDate">正在獲取現在時刻...</p>
+  </div>
+  <div id="countdownWrapper">
+    <div id="countdownBar"></div>
+    <div id="countdownText">打卡中，請稍候...</div>
+    <div id="resultText"></div>
+  </div>
 
   <script>
-    const liffId = "2008504718-nmXP0WRV";  // 你自己的 LIFF ID
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxeT7meD2V6-35YtkhRldOPMdadHzSdYaU4OnGU4-6NSWYpa3Hg4WG43plEXIl1Ky5R/exec";
+    const COMPANY_IPS = ["118.231.136.15"];
+    const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxG7ppHNFDxolcBDRgSki94I9X3gCYorANltS6bYy-A30mt0lnctW6JTSddZhI1_C1I/exec";
 
-    // 初始化 LIFF
-    liff.init({ liffId })
-      .then(() => {
-        console.log("LIFF init success");
-      })
-      .catch(err => console.error("LIFF init failed", err));
+    async function getUserIP() {
+      const res = await fetch("https://api.ipify.org?format=json");
+      const data = await res.json();
+      return data.ip;
+    }
 
-    document.getElementById("punchBtn").addEventListener("click", async () => {
-      const profile = await liff.getProfile();
-      const now = new Date();
-      const timeStr = now.getFullYear() + "-" +
-                      String(now.getMonth()+1).padStart(2,'0') + "-" +
-                      String(now.getDate()).padStart(2,'0') + " " +
-                      String(now.getHours()).padStart(2,'0') + ":" +
-                      String(now.getMinutes()).padStart(2,'0') + ":" +
-                      String(now.getSeconds()).padStart(2,'0');
+    async function displayCurrentInfo() {
+      const date = new Date();
+      document.getElementById("currentDate").textContent = "現在時刻: " + date.toLocaleString("zh-TW");
 
-      const payload = {
-        name: profile.displayName,
-        time: timeStr
-      };
+      try {
+        const ip = await getUserIP();
+        if (COMPANY_IPS.includes(ip)) {
+          document.getElementById("ipAddress").innerHTML = '<span class="specialIp">已連接公司網路</span>';
+        } else {
+          document.getElementById("ipAddress").innerHTML = '<span class="unknownConnection">不明連線</span>';
+        }
+        return ip;
+      } catch (err) {
+        document.getElementById("ipAddress").textContent = "無法獲取 IP 地址";
+        return null;
+      }
+    }
 
-      fetch(GAS_URL, {
+    async function performClockIn(ip) {
+      const res = await fetch(API_ENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(data => {
-        if(data.status === "ok") alert("打卡成功!");
-        else alert("打卡失敗: " + JSON.stringify(data));
-      })
-      .catch(err => alert("網路錯誤: " + err));
-    });
+        body: JSON.stringify({ ip }),
+      });
+      return await res.text();
+    }
+
+    window.onload = async () => {
+      const ip = await displayCurrentInfo();
+      if (!ip) return;
+
+      const bar = document.getElementById("countdownBar");
+      const text = document.getElementById("countdownText");
+      const resultEl = document.getElementById("resultText");
+
+      // 倒數時間控制
+      let duration = 3;
+      let width = 100;
+      const countdown = setInterval(() => {
+        width -= 100 / duration;
+        bar.style.width = width + "%";
+      }, 1000);
+
+      const clockInPromise = performClockIn(ip);
+
+      // 倒數結束時開始動畫等待
+      setTimeout(() => {
+        clearInterval(countdown);
+        bar.style.display = "none";
+        text.classList.add("pulsingText");
+      }, duration * 1000);
+
+      // 等待伺服器回應
+      clockInPromise.then(responseText => {
+        text.classList.remove("pulsingText");
+        text.style.display = "none";
+        resultEl.style.display = "block";
+
+        const nowTime = new Date().toLocaleTimeString("zh-TW");
+        const isCompanyIP = COMPANY_IPS.includes(ip);
+
+        if (responseText.includes("成功") && isCompanyIP) {
+          resultEl.textContent = "😀 打卡成功!";
+          resultEl.style.color = "#4CAF50";
+          Swal.fire({
+            icon: 'success',
+            title: '🎉 打卡成功！',
+            html: `<strong>打卡時間：</strong> ${nowTime}`,
+            showConfirmButton: false,
+            allowOutsideClick: true
+          });
+        } else if (responseText.includes("成功")) {
+          resultEl.textContent = "⚠ 連線錯誤，切換網路再試";
+          resultEl.style.color = "#e67e22";
+          Swal.fire({
+            icon: 'warning',
+            title: '⚠ 非公司網路',
+            html: `<div>◎ 異地打卡請忽略 ◎</div>`,
+            showConfirmButton: false,
+            allowOutsideClick: true
+          });
+        } else {
+          resultEl.textContent = "😥 關閉視窗，重新打卡。";
+          resultEl.style.color = "red";
+          Swal.fire({
+            icon: 'error',
+            title: '😥 操作錯誤',
+            html: '未簽到或重複簽到',
+            showConfirmButton: false,
+            allowOutsideClick: true
+          });
+        }
+      });
+    };
   </script>
 </body>
 </html>
-
 
 
 
