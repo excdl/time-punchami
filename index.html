@@ -7,23 +7,29 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-body { font-family: Arial; background-color: #f4f4f9; color: #333; display:flex; flex-direction:column; align-items:center; padding:10px;}
-h3 { font-size:24px; margin-bottom:10px;}
-#currentInfo, #todayRecords { width:100%; max-width:400px; margin-top:10px; padding:10px; border-radius:10px; background:#fff; box-shadow:0 0 5px rgba(0,0,0,0.1);}
-.status-box { display:inline-block; padding:5px 10px; border-radius:20px; font-weight:bold;}
+body { font-family: Arial; background-color: #f4f4f9; color: #333; display:flex; flex-direction:column; align-items:center; padding:20px;}
+#currentInfo { text-align:center; margin-bottom:20px; }
+#currentInfo p { font-size:20px; margin:5px; }
+.status-box { display:inline-block; padding:5px 15px; border-radius:20px; font-weight:bold; font-size:16px; }
 .status-company { color:green; border:1px solid green; }
 .status-unknown { color:red; border:1px solid red; }
-button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
+button { margin:5px; padding:12px 24px; font-size:18px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
 #btnStart { background-color:#3498db; color:white;}
 #btnEnd { background-color:#e74c3c; color:white;}
 #btnMakeUp { background-color:#f39c12; color:white;}
+#todayRecords { width:100%; max-width:400px; margin-top:20px; padding:10px; border-radius:10px; background:#fff; box-shadow:0 0 5px rgba(0,0,0,0.1);}
+#todayRecords ul { padding-left:20px; }
+.record-company { color:green; font-weight:bold; }
+.record-unknown { color:red; font-weight:bold; }
 </style>
 </head>
 <body>
+
 <h3 id="greeting">您好</h3>
+
 <div id="currentInfo">
 <p id="currentDate">正在獲取現在時刻...</p>
-<p>連線狀態: <span id="ipStatus">檢測中...</span></p>
+<p id="ipStatus">檢測中...</p>
 </div>
 
 <div>
@@ -33,16 +39,15 @@ button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; borde
 </div>
 
 <div id="todayRecords">
-<h4>今日打卡紀錄</h4>
 <ul id="recordsList"></ul>
 </div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyrLQZv08u10DESc-Bppil1xBu86sU84dEz6oBBlJvBNkr-vdNiwkKvFnCJ77IKVEE/exec"; // Google Apps Script POST URL
-const COMPANY_IPS = ["114.34.60.48","27.240.227.0"]; // 多個公司IP
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZ1LQDTdyOzlU8I-tJfvm8wTgpcnSF-DtuvAhQGMhUFXxQIz2fj4nm-0wMm330NmOQ/exec"; // Google Apps Script POST URL
+const COMPANY_IPS = ["114.34.60.48","192.168.1.2"]; // 多個公司IP
 
 function getCurrentTimeText(){ return new Date().toLocaleString("zh-TW"); }
-function updateCurrentTime(){ document.getElementById("currentDate").textContent = "現在時刻: " + getCurrentTimeText(); }
+function updateCurrentTime(){ document.getElementById("currentDate").textContent = getCurrentTimeText(); }
 setInterval(updateCurrentTime,1000);
 updateCurrentTime();
 
@@ -52,9 +57,9 @@ async function detectIP(){
         const data = await res.json();
         const ipEl = document.getElementById("ipStatus");
         if(COMPANY_IPS.includes(data.ip)){
-            ipEl.innerHTML = `<span class="status-box status-company">已連線公司網路 (${data.ip})</span>`;
+            ipEl.innerHTML = `<span class="status-box status-company">已連線公司網路</span>`;
         } else {
-            ipEl.innerHTML = `<span class="status-box status-unknown">不明連線 (${data.ip})</span>`;
+            ipEl.innerHTML = `<span class="status-box status-unknown">不明連線</span>`;
         }
         return data.ip;
     }catch(e){
@@ -95,14 +100,16 @@ async function makeUpClockIn(){
     const { value: formValues } = await Swal.fire({
         title:'補打卡設定',
         html:
-            `<input type="date" id="swal-date" class="swal2-input" value="${today}">`+
-            `<input type="time" id="swal-time" class="swal2-input" value="${nowTime}">`+
-            `<select id="swal-status" class="swal2-input">
+            `<label style="font-weight:bold;">日期:</label><input type="date" id="swal-date" class="swal2-input" value="${today}">`+
+            `<label style="font-weight:bold;">時間:</label><input type="time" id="swal-time" class="swal2-input" value="${nowTime}">`+
+            `<label style="font-weight:bold; font-size:20px;">動態:</label>`+
+            `<select id="swal-status" class="swal2-input" style="font-size:22px; font-weight:bold;">
                 <option value="上班">上班</option>
                 <option value="下班">下班</option>
              </select>`,
         focusConfirm:false,
         showCancelButton:true,
+        confirmButtonText:'完成',
         preConfirm:()=>({
             date: document.getElementById('swal-date').value,
             time: document.getElementById('swal-time').value,
@@ -135,9 +142,12 @@ async function loadTodayRecords(userId){
     const ul = document.getElementById("recordsList");
     ul.innerHTML="";
     records.forEach(r=>{
-        const li = document.createElement("li");
-        li.textContent = `${r.status} - ${r.time}${r.note ? ' ('+r.note+')' : ''}`;
-        ul.appendChild(li);
+        if(COMPANY_IPS.includes(r.ip)){ // 只有公司 IP 顯示
+            const li = document.createElement("li");
+            li.textContent = `${r.status} - ${r.time}${r.note ? ' ('+r.note+')' : ''}`;
+            li.className = "record-company";
+            ul.appendChild(li);
+        }
     });
 }
 
