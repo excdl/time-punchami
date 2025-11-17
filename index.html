@@ -7,163 +7,147 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-body { font-family: Arial; background-color: #f4f4f9; color: #333; display:flex; flex-direction:column; align-items:center; padding:20px;}
-#currentInfo { text-align:center; margin-bottom:20px; }
-#currentInfo p { font-size:20px; margin:5px; }
-.status-box { display:inline-block; padding:5px 15px; border-radius:20px; font-weight:bold; font-size:16px; }
-.status-company { color:green; border:1px solid green; }
-.status-unknown { color:red; border:1px solid red; }
-button { margin:5px; padding:12px 24px; font-size:18px; border-radius:8px; border:none; cursor:pointer; font-weight:bold;}
-#btnStart { background-color:#3498db; color:white;}
-#btnEnd { background-color:#e74c3c; color:white;}
-#btnMakeUp { background-color:#f39c12; color:white;}
-#todayRecords { width:100%; max-width:400px; margin-top:20px; padding:10px; border-radius:10px; background:#fff; box-shadow:0 0 5px rgba(0,0,0,0.1);}
-#todayRecords ul { padding-left:20px; }
+body { font-family: Arial; display:flex; flex-direction:column; align-items:center; margin:20px;}
+#userInfo { text-align:center; font-size:18px; margin-bottom:10px; }
+#statusInfo { text-align:center; font-size:16px; margin-bottom:20px; padding:5px 15px; border-radius:20px; display:inline-block; }
+button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; cursor:pointer; font-weight:bold; }
+#btnStart { background-color:#3498db; color:white; }
+#btnEnd { background-color:#e74c3c; color:white; }
+#btnMakeup { background-color:#f39c12; color:white; }
+#todayRecords { margin-top:20px; width:90%; border:1px solid #ccc; padding:10px; border-radius:8px; min-height:50px; }
+#countdownWrapper { margin-top:20px; width:120px; height:120px; position:relative; display:none; }
+#circleBg, #circleProgress { fill:none; stroke-width:12; transform: rotate(-90deg); transform-origin: 50% 50%; }
+#circleBg { stroke:#ddd; }
+#circleProgress { stroke:#3498db; stroke-linecap:round; stroke-dasharray: 377; stroke-dashoffset: 0; }
+#countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; text-align:center; }
 </style>
 </head>
 <body>
 
-<h3 id="greeting">您好</h3>
-
-<div id="currentInfo">
-<p id="currentDate">正在獲取現在時刻...</p>
-<p id="ipStatus">檢測中...</p>
-</div>
+<div id="userInfo">正在獲取使用者資訊...</div>
+<div id="statusInfo"></div>
 
 <div>
 <button id="btnStart">上班打卡</button>
 <button id="btnEnd">下班打卡</button>
-<button id="btnMakeUp">補打卡</button>
+<button id="btnMakeup">補打卡</button>
 </div>
 
-<div id="todayRecords">
-<ul id="recordsList"></ul>
+<div id="countdownWrapper">
+  <svg width="120" height="120">
+    <circle id="circleBg" cx="60" cy="60" r="60"></circle>
+    <circle id="circleProgress" cx="60" cy="60" r="60"></circle>
+  </svg>
+  <div id="countdownText">打卡中...</div>
 </div>
+
+<div id="todayRecords">今日打卡紀錄：</div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyECsWJpPkCdzIJyAklYtds36UARGpxzrcMkgU6K18OUepLSqrpd8gupkOCSNark9Gf/exec"; // Google Apps Script POST URL
-const COMPANY_IPS = ["192.168.1.1","192.168.1.2"]; // 多個公司IP
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbzbPgpwrEJFDVwnR6jmZSJwCmW_L8xPB3ViBEZ-1t-6tPwFD-UqNVqlV98aNt2g4gaG/exec";
+const COMPANY_IPS = ["114.34.60.48","27.240.227.0"]; // 公司IP清單
 
-function getCurrentTimeText(){ return new Date().toLocaleString("zh-TW"); }
-function updateCurrentTime(){ document.getElementById("currentDate").textContent = getCurrentTimeText(); }
-setInterval(updateCurrentTime,1000);
-updateCurrentTime();
-
-async function detectIP(){
-    try{
-        const res = await fetch("https://api.ipify.org?format=json");
-        const data = await res.json();
-        const ipEl = document.getElementById("ipStatus");
-        if(COMPANY_IPS.includes(data.ip)){
-            ipEl.innerHTML = `<span class="status-box status-company">已連線公司網路</span>`;
-        } else {
-            ipEl.innerHTML = `<span class="status-box status-unknown">不明連線</span>`;
-        }
-        return data.ip;
-    }catch(e){
-        document.getElementById("ipStatus").textContent="IP 取得失敗";
-        return "";
-    }
+async function getIP() {
+  try { const res = await fetch("https://api.ipify.org?format=json"); const data = await res.json(); return data.ip; }
+  catch { return ""; }
 }
 
-async function performClockIn(data){
-    const res = await fetch(API_ENDPOINT,{ method:"POST", body: JSON.stringify(data) });
-    return await res.json();
+async function updateUserInfo() {
+  await liff.init({ liffId: "2008504718-nmXP0WRV" });
+  if(!liff.isLoggedIn()) liff.login();
+  const profile = await liff.getProfile();
+  window.userId = profile.userId;
+  window.userName = profile.displayName;
+  const ip = await getIP();
+  const isCompany = COMPANY_IPS.includes(ip);
+  document.getElementById("userInfo").textContent = profile.displayName + " 您好";
+  const statusEl = document.getElementById("statusInfo");
+  statusEl.textContent = isCompany ? "已連線公司網路" : "不明連線";
+  statusEl.style.backgroundColor = isCompany ? "#d4f4dd" : "#f8d4d4";
+  statusEl.style.color = isCompany ? "green" : "red";
 }
 
-async function clockIn(status){
-    const profile = await liff.getProfile();
-    const userId = profile.userId;
-    const displayName = profile.displayName;
-    const ip = await detectIP();
+async function performClockIn(status, customDate="", customTime="") {
+  const ip = await getIP();
+  const wrapper = document.getElementById("countdownWrapper");
+  const circle = document.getElementById("circleProgress");
+  const text = document.getElementById("countdownText");
+  wrapper.style.display = "block";
+  text.textContent = "打卡中...";
+  const radius = 60;
+  const circumference = 2 * Math.PI * radius;
+  circle.style.strokeDasharray = circumference;
+  circle.style.strokeDashoffset = 0;
 
-    const data = { ip, userId, displayName, status };
-    const response = await performClockIn(data);
-    if(response.message==="寫入成功"){
-        Swal.fire({icon:'success', title:'🎉 打卡成功', html:`${status} 時間：${response.date} ${response.time}`, timer:2000, showConfirmButton:false});
-        loadTodayRecords(userId);
-    } else {
-        Swal.fire({icon:'error', title:'😥 打卡失敗', timer:2000, showConfirmButton:false});
-    }
+  let duration = 3; // 秒
+  const steps = duration * 20; // 每50ms更新
+  for(let i=0;i<=steps;i++){
+    await new Promise(r=>setTimeout(r,50));
+    const progress = i/steps;
+    circle.style.strokeDashoffset = circumference * (1-progress);
+    // 顏色漸變藍->綠
+    const rC = Math.round(52*(1-progress));
+    const gC = Math.round(152*(1-progress)+202*progress);
+    const bC = Math.round(219*(1-progress));
+    circle.style.stroke = `rgb(${rC},${gC},${bC})`;
+  }
+
+  // 呼叫API
+  const res = await fetch(API_ENDPOINT, {
+    method:"POST",
+    body: JSON.stringify({ userId:window.userId, displayName:window.userName, status, ip, customDate, customTime })
+  });
+  const data = await res.json();
+  wrapper.style.display="none";
+  if(data.message==="寫入成功") {
+    Swal.fire({icon:'success', title:'打卡成功', html:`${status} ${data.date} ${data.time}`, timer:2000});
+    updateTodayRecords();
+  } else {
+    Swal.fire({icon:'error', title:'打卡失敗', html:data.message, timer:2000});
+  }
 }
 
-async function makeUpClockIn(){
-    const profile = await liff.getProfile();
-    const userId = profile.userId;
-    const displayName = profile.displayName;
-
-    const today = new Date().toISOString().slice(0,10);
-    const nowTime = new Date().toTimeString().slice(0,5);
-
-    const { value: formValues } = await Swal.fire({
-        title:'補打卡設定',
-        html:
-            `<label style="font-weight:bold;">日期:</label><input type="date" id="swal-date" class="swal2-input" value="${today}">`+
-            `<label style="font-weight:bold;">時間:</label><input type="time" id="swal-time" class="swal2-input" value="${nowTime}">`+
-            `<label style="font-weight:bold; font-size:20px;">動態:</label>`+
-            `<select id="swal-status" class="swal2-input" style="font-size:22px; font-weight:bold;">
-                <option value="上班">上班</option>
-                <option value="下班">下班</option>
-             </select>`,
-        focusConfirm:false,
-        showCancelButton:true,
-        confirmButtonText:'完成',
-        preConfirm:()=>({
-            date: document.getElementById('swal-date').value,
-            time: document.getElementById('swal-time').value,
-            status: document.getElementById('swal-status').value
-        })
-    });
-
-    if(!formValues) return;
-
-    const ip = COMPANY_IPS[0]; // 補打卡預設公司 IP
-    const data = {
-        ip, userId, displayName, status: formValues.status,
-        customDate: formValues.date, customTime: formValues.time,
-        note: "補打卡"
-    };
-
-    const response = await performClockIn(data);
-    if(response.message==="寫入成功"){
-        Swal.fire({icon:'success', title:'🎉 補打卡成功', html:`時間：${data.customDate} ${data.customTime}`, timer:2000, showConfirmButton:false});
-        loadTodayRecords(userId);
-    }else{
-        Swal.fire({icon:'error', title:'😥 補打卡失敗', timer:2000, showConfirmButton:false});
-    }
+async function updateTodayRecords() {
+  const today = new Date().toISOString().slice(0,10);
+  const res = await fetch(API_ENDPOINT + `?action=getToday&userId=${window.userId}&date=${today}`);
+  const data = await res.json();
+  const container = document.getElementById("todayRecords");
+  if(data.length===0) container.textContent = "今日打卡紀錄：無";
+  else container.innerHTML = "今日打卡紀錄：<br>" + data.map(r=>`${r.status} ${r.time}`).join("<br>");
 }
 
-async function loadTodayRecords(userId){
-    const today = new Date().toISOString().slice(0,10);
-    const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${userId}&date=${today}`);
-    const records = await res.json();
-    const ul = document.getElementById("recordsList");
-    ul.innerHTML="";
-    records.forEach(r=>{
-        const li = document.createElement("li");
-        li.textContent = `${r.status} - ${r.time}${r.note ? ' ('+r.note+')' : ''}`;
-        ul.appendChild(li);
-    });
-}
+document.getElementById("btnStart").onclick = ()=>performClockIn("上班");
+document.getElementById("btnEnd").onclick = ()=>performClockIn("下班");
+document.getElementById("btnMakeup").onclick = async ()=>{
+  const { value: formValues } = await Swal.fire({
+    title: '補打卡設定',
+    html: `
+      <label>日期:</label><input type="date" id="swalDate" class="swal2-input"><br>
+      <label>時間:</label><input type="time" id="swalTime" class="swal2-input"><br>
+      <label>動態:</label>
+      <select id="swalStatus" class="swal2-select">
+        <option>上班</option><option>下班</option>
+      </select>`,
+    focusConfirm: false,
+    preConfirm: () => [
+      document.getElementById('swalDate').value,
+      document.getElementById('swalTime').value,
+      document.getElementById('swalStatus').value
+    ],
+    showCancelButton:true,
+    confirmButtonText:'完成'
+  });
+  if(formValues) performClockIn(formValues[2], formValues[0], formValues[1]);
+};
 
-async function main(){
-    await liff.init({ liffId:"2008504718-nmXP0WRV" });
-    if(!liff.isLoggedIn()) liff.login();
-    const profile = await liff.getProfile();
-    document.getElementById("greeting").textContent = `${profile.displayName} 您好`;
-
-    document.getElementById("btnStart").onclick = ()=>clockIn("上班");
-    document.getElementById("btnEnd").onclick = ()=>clockIn("下班");
-    document.getElementById("btnMakeUp").onclick = makeUpClockIn;
-
-    await detectIP();
-    loadTodayRecords(profile.userId);
-}
-
-window.onload = main;
+window.onload = async ()=>{
+  await updateUserInfo();
+  await updateTodayRecords();
+};
 </script>
 </body>
 </html>
+
 
 
 
