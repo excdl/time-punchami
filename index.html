@@ -32,13 +32,14 @@
           ip: userIp
         };
 
-        const res = await fetch("https://script.google.com/macros/s/AKfycbxP0sf5UgLpTFEtGmU9Tqrexg9paZahR3Qg0_J6lxz4xKdzU0Rph6ugabZ1MkRCbcct/exec", {
+        const res = await fetch("https://script.google.com/macros/s/AKfycbwiB3QARUcjUvl1yRTgTclzOk0fwoPD7LU0Gaf3Z_CIt5HTUGUIGi1hKM-DG5WmdmCf/exec", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
-        const result = await res.json();
+        const text = await res.text();          // 用 text() 取回
+        const result = JSON.parse(text);        // 再 parse
         alert("資料回傳結果：" + JSON.stringify(result));
 
       } catch (err) {
@@ -53,6 +54,11 @@
   </script>
 </body>
 </html>
+
+
+
+
+
 
 
 
