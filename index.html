@@ -6,25 +6,38 @@
 <title>奇可智能打卡系統</title>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
 <style>
-body { font-family: Arial; display:flex; flex-direction:column; align-items:center; margin:20px;}
+body { font-family: Arial; display:flex; flex-direction:column; align-items:center; margin:20px; }
 #userInfo { text-align:center; font-size:18px; margin-bottom:10px; }
 #statusInfo { text-align:center; font-size:16px; margin-bottom:20px; padding:5px 15px; border-radius:20px; display:inline-block; }
-.buttons-container { display:flex; flex-direction:row; justify-content:space-between; width:100%; max-width:400px; gap:10px;}
+
+.buttons-container {
+    display:flex;
+    flex-direction:row;
+    justify-content:space-between;
+    width:100%;
+    max-width:400px;
+    gap:10px;
+}
 button { flex:1; padding:10px 0; font-size:16px; border-radius:8px; cursor:pointer; font-weight:bold; }
 #btnStart { background-color:#3498db; color:white; }
 #btnEnd { background-color:#e74c3c; color:white; }
 #btnMakeup { background-color:#f39c12; color:white; }
+
 #todayRecords { margin-top:20px; width:90%; border:1px solid #ccc; padding:10px; border-radius:8px; min-height:50px; }
+
 #countdownWrapper { margin-top:20px; width:120px; height:120px; position:relative; display:none; }
-#circleProgress { fill:none; stroke-width:12; stroke-linecap:round; transform: rotate(-90deg); transform-origin: 50% 50%; stroke-dasharray: 314; stroke-dashoffset: 0; }
-#countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; text-align:center; white-space:nowrap; }
+#circleProgress { fill:none; stroke-width:12; stroke-linecap:round; transform: rotate(-90deg); transform-origin: 50% 50%; }
+#countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; white-space:nowrap; }
 </style>
 </head>
+
 <body>
 
 <div id="userInfo">正在獲取使用者資訊...</div>
 <div id="statusInfo"></div>
+
 <div class="buttons-container">
     <button id="btnStart">上班</button>
     <button id="btnEnd">下班</button>
@@ -41,9 +54,11 @@ button { flex:1; padding:10px 0; font-size:16px; border-radius:8px; cursor:point
 <div id="todayRecords">今日打卡紀錄：</div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwb2jTMBYqPPeL-Jf8_OhWzNnCSDZJgwKm7JAzWk7GR7wH89-yy-o2IXjpfuNQHW634/exec";
+// ===== 設定 =====
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwZ_GQZXRKiw5Anf_OhjRPOgYgTWG2bTOSvh1-VrGIvSMwOExY-igH4U4S5Wm5Brmzy/exec";
 const COMPANY_IPS = ["114.34.60.48"];
 
+// ===== 取得 IP =====
 async function getIP() {
     try {
         const res = await fetch("https://api.ipify.org?format=json");
@@ -52,22 +67,27 @@ async function getIP() {
     } catch { return ""; }
 }
 
+// ===== 取得 LINE 使用者 =====
 async function updateUserInfo() {
     await liff.init({ liffId: "2008504718-nmXP0WRV" });
     if(!liff.isLoggedIn()) liff.login();
+
     const profile = await liff.getProfile();
     window.userId = profile.userId;
     window.userName = profile.displayName;
+
     const ip = await getIP();
     const isCompany = COMPANY_IPS.includes(ip);
-    document.getElementById("userInfo").textContent = profile.displayName + " 您好";
+
+    document.getElementById("userInfo").textContent = `${profile.displayName} 您好`;
+
     const statusEl = document.getElementById("statusInfo");
     statusEl.textContent = isCompany ? "已連線公司網路" : "非公司網路";
     statusEl.style.backgroundColor = isCompany ? "#d4f4dd" : "#f8d4d4";
     statusEl.style.color = isCompany ? "green" : "red";
 }
 
-// 快速、順暢動畫
+// ===== 圓環動畫（快速流暢） =====
 function animateCircle(circle, startColor, endColor, duration=400) {
     const radius = 50;
     const circumference = 2 * Math.PI * radius;
@@ -80,153 +100,152 @@ function animateCircle(circle, startColor, endColor, duration=400) {
     const update = () => {
         i++;
         const progress = i / steps;
-        circle.style.strokeDashoffset = circumference * (1 - progress);
 
-        const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
-        const gC = Math.round(startColor.g*(1-progress) + endColor.g*progress);
-        const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
-        circle.style.stroke = `rgb(${rC},${gC},${bC})`;
+        circle.style.strokeDashoffset = circumference * (1 - progress);
+        
+        const r = Math.round(startColor.r*(1-progress) + endColor.r*progress);
+        const g = Math.round(startColor.g*(1-progress) + endColor.g*progress);
+        const b = Math.round(startColor.b*(1-progress) + endColor.b*progress);
+        circle.style.stroke = `rgb(${r},${g},${b})`;
 
         if (i < steps) requestAnimationFrame(update);
     };
+
     requestAnimationFrame(update);
 }
 
+// ===== 打卡事件 =====
 async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
     const ip = await getIP();
     const wrapper = document.getElementById("countdownWrapper");
     const circle = document.getElementById("circleProgress");
-    const text = document.getElementById("countdownText");
 
     wrapper.style.display = "block";
-    text.textContent = isMakeup ? "補打卡中..." : "打卡中...";
 
-    const startColor = isMakeup ? {r:243,g:156,b:18} : (status==="上班" ? {r:52,g:152,b:219} : {r:46,g:204,b:113});
-    const endColor = isMakeup ? {r:255,g:200,b:0} : (status==="上班" ? {r:46,g:204,b:113} : {r:231,g:76,b:60});
-
-    animateCircle(circle, startColor, endColor, 400);
+    animateCircle(
+        circle,
+        status === "上班" ? {r:52,g:152,b:219} : {r:46,g:204,b:113},
+        status === "上班" ? {r:46,g:204,b:113} : {r:231,g:76,b:60},
+        400
+    );
 
     try {
         const res = await fetch(API_ENDPOINT, {
             method: "POST",
-            body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
+            body: JSON.stringify({
+                userId: window.userId,
+                displayName: window.userName,
+                status, ip, customDate, customTime, isMakeup
+            })
         });
-        const data = await res.json();
-        wrapper.style.display="none";
 
-        if(data.message.includes("成功")) {
-            const msgHtml = `<strong>打卡時間：</strong>${data.date} ${data.time}`;
-            Swal.fire({ icon:"success", title:"🎉 打卡成功！", html: msgHtml, showConfirmButton:false, timer:2000, backdrop:"rgba(0,0,0,0.5)" });
+        const data = await res.json();
+        wrapper.style.display = "none";
+
+        if (data.message.includes("成功")) {
+            Swal.fire({
+                icon:"success",
+                title:"打卡成功",
+                text:`時間：${data.date} ${data.time}`,
+                timer:2000,
+                showConfirmButton:false
+            });
         } else {
-            Swal.fire({ icon:"error", title:"😥 打卡失敗或已打過", showConfirmButton:false, timer:2000, backdrop:"rgba(0,0,0,0.5)" });
+            Swal.fire({ icon:"error", title:data.message });
         }
 
-        await updateTodayRecords();
-    } catch (error) {
-        wrapper.style.display="none";
-        Swal.fire({ icon:"error", title:"😥 發生錯誤", showConfirmButton:false, timer:2000, backdrop:"rgba(0,0,0,0.5)" });
-        console.error(error);
+        updateTodayRecords();
+    } catch(err) {
+        wrapper.style.display = "none";
+        Swal.fire({ icon:"error", title:"發生錯誤" });
+        console.error(err);
     }
 }
 
+// ===== 修正時間格式（解決 1899） =====
+function fixTimeFormat(t) {
+    // 如果是正常字串時間 "12:30:00"
+    if (typeof t === "string" && t.includes(":") && !t.includes("T")) return t;
+
+    // 如果是 ISO (補打卡時可能)
+    if (typeof t === "string" && t.includes("T")) {
+        return new Date(t).toLocaleTimeString("zh-TW", { hour12:false });
+    }
+
+    // 如果是 Google Sheet 小數（Excel 時間）
+    if (!isNaN(t)) {
+        const d = new Date((t - 25569) * 86400 * 1000);
+        return d.toLocaleTimeString("zh-TW", { hour12:false });
+    }
+
+    return t;
+}
+
+// ===== 取得今日紀錄 =====
 async function updateTodayRecords() {
     const now = new Date();
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-    const today = now.toLocaleDateString('zh-TW', {
-        timeZone: tz,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-    }).replace(/\//g, '/');
-
-    const ip = await getIP();
-    const isCompany = COMPANY_IPS.includes(ip);
-
-    // ⭐ 統一轉換所有可能格式的時間 → HH:mm:ss
-    function fixTime(timeVal) {
-        // 1. 如果是正確的 "HH:mm:ss" 字串 → 直接回傳
-        if (typeof timeVal === "string" && /^\d{2}:\d{2}:\d{2}$/.test(timeVal)) {
-            return timeVal;
-        }
-
-        // 2. 如果是 ISO 字串 (像 1899-12-30T05:37:13.000Z)
-        if (typeof timeVal === "string" && timeVal.includes("T")) {
-            const d = new Date(timeVal);
-            return d.toLocaleTimeString("zh-TW", { hour12: false });
-        }
-
-        // 3. 如果是 Google Sheet 小數格式 (例如 0.23456)
-        if (typeof timeVal === "number") {
-            const excelEpoch = (timeVal - 25569) * 86400 * 1000;
-            const d = new Date(excelEpoch);
-            return d.toLocaleTimeString("zh-TW", { hour12: false });
-        }
-
-        // 4. 如果是 GAS 回傳的 Date 物件
-        if (Object.prototype.toString.call(timeVal) === "[object Date]") {
-            return timeVal.toLocaleTimeString("zh-TW", { hour12: false });
-        }
-
-        return timeVal; // fallback
-    }
+    const today = now.toLocaleDateString("zh-TW").replace(/\//g, "/");
 
     try {
         const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
         const data = await res.json();
-        const container = document.getElementById("todayRecords");
 
-        if (!Array.isArray(data) || data.length === 0) {
+        const container = document.getElementById("todayRecords");
+        if (!data.length) {
             container.innerHTML = "今日打卡紀錄：無";
             return;
         }
 
         container.innerHTML = "今日打卡紀錄：<br>" + data.map(r => {
-            const time = fixTime(r.time);
-
-            let label = r.isMakeup
-                ? "(補打卡-待審核)"
-                : (isCompany ? "(公司網路)" : "(非公司網路)");
-
-            return `${r.status} ${time} ${label}`;
+            const time = fixTimeFormat(r.time);
+            const ipLabel = COMPANY_IPS.includes(r.ip) ? "(公司網路)" : "(非公司網路)";
+            const makeup = r.isMakeup ? "(補打卡-待審核)" : "";
+            return `${r.status} ${time} ${ipLabel} ${makeup}`;
         }).join("<br>");
 
-    } catch (err) {
-        console.error("取得今日打卡紀錄錯誤：", err);
+    } catch(err) {
+        console.error(err);
         document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：讀取失敗";
     }
 }
 
-document.getElementById("btnStart").onclick = ()=>performClockIn("上班");
-document.getElementById("btnEnd").onclick = ()=>performClockIn("下班");
-document.getElementById("btnMakeup").onclick = async ()=>{
-    const { value: formValues } = await Swal.fire({
-        title: '補打卡設定',
-        html: `<label>日期:</label><input type="date" id="swalDate" class="swal2-input"><br>
-               <label>時間:</label><input type="time" id="swalTime" class="swal2-input"><br>
-               <label>動態:</label>
-               <select id="swalStatus" class="swal2-select">
-                   <option>上班</option><option>下班</option>
-               </select>`,
-        focusConfirm: false,
-        preConfirm: () => [
-            document.getElementById('swalDate').value,
-            document.getElementById('swalTime').value,
-            document.getElementById('swalStatus').value
+// ===== 按鈕事件 =====
+document.getElementById("btnStart").onclick = () => performClockIn("上班");
+document.getElementById("btnEnd").onclick = () => performClockIn("下班");
+
+document.getElementById("btnMakeup").onclick = async () => {
+    const { value } = await Swal.fire({
+        title:"補打卡設定",
+        html: `
+          <input type="date" id="d" class="swal2-input">
+          <input type="time" id="t" class="swal2-input">
+          <select id="s" class="swal2-select">
+            <option>上班</option>
+            <option>下班</option>
+          </select>`,
+        focusConfirm:false,
+        preConfirm:() => [
+            document.getElementById("d").value,
+            document.getElementById("t").value,
+            document.getElementById("s").value
         ],
-        showCancelButton:true,
-        confirmButtonText:'完成'
+        showCancelButton:true
     });
-    if(formValues) performClockIn(formValues[2], formValues[0], formValues[1], true);
+
+    if (value)
+        performClockIn(value[2], value[0], value[1], true);
 };
 
-window.onload = async ()=>{
+// ===== 初始化 =====
+window.onload = async () => {
     await updateUserInfo();
     await updateTodayRecords();
 };
 </script>
+
 </body>
 </html>
+
 
 
 
