@@ -132,9 +132,31 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
 async function updateTodayRecords() {
     const now = new Date();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const today = now.toLocaleDateString('zh-TW', { timeZone: tz }).replace(/\//g, '/'); // yyyy/MM/dd
+    const today = now.toLocaleDateString('zh-TW', { timeZone: tz }).replace(/\//g, '/');
+
     const ip = await getIP();
     const isCompany = COMPANY_IPS.includes(ip);
+
+    function fixTimeFormat(timeValue) {
+        // 若已經是字串格式 HH:mm:ss → 直接回傳
+        if (typeof timeValue === "string" && timeValue.includes(":")) {
+            return timeValue;
+        }
+
+        // 若是 Google sheet 儲存的小數（Excel time）
+        if (!isNaN(timeValue)) {
+            const d = new Date((timeValue - 25569) * 86400 * 1000);
+            return d.toLocaleTimeString("zh-TW", { hour12: false });
+        }
+
+        // 若是 ISO 格式
+        if (typeof timeValue === "string" && timeValue.includes("T")) {
+            const d = new Date(timeValue);
+            return d.toLocaleTimeString("zh-TW", { hour12: false });
+        }
+
+        return timeValue;
+    }
 
     try {
         const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
@@ -148,15 +170,14 @@ async function updateTodayRecords() {
 
         container.innerHTML = "今日打卡紀錄：<br>" + data
             .map(r => {
-                let timeStr = r.time;
-                if (r.time instanceof Date) {
-                    timeStr = r.time.toLocaleTimeString('zh-TW', { hour12:false });
-                } else if (!r.time.includes(':')) {
-                    const d = new Date((r.time - 25569) * 86400 * 1000);
-                    timeStr = d.toLocaleTimeString('zh-TW', { hour12:false });
-                }
-                let networkLabel = r.isMakeup ? "(補打卡-待審核)" : (isCompany ? "(公司網路)" : "(非公司網路)");
-                return `${r.status} ${timeStr} ${networkLabel}`;
+                let timeStr = fixTimeFormat(r.time);
+
+                let label =
+                    r.isMakeup
+                    ? "(補打卡-待審核)"
+                    : (isCompany ? "(公司網路)" : "(非公司網路)");
+
+                return `${r.status} ${timeStr} ${label}`;
             })
             .join("<br>");
     } catch (err) {
