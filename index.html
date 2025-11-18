@@ -87,34 +87,8 @@ async function updateUserInfo() {
     statusEl.style.color = isCompany ? "green" : "red";
 }
 
-// ===== 圓環動畫（快速流暢） =====
-function animateCircle(circle, startColor, endColor, duration=400) {
-    const radius = 50;
-    const circumference = 2 * Math.PI * radius;
-    circle.style.strokeDasharray = circumference;
-    circle.style.strokeDashoffset = circumference;
-
-    const steps = 40;
-    let i = 0;
-
-    const update = () => {
-        i++;
-        const progress = i / steps;
-
-        circle.style.strokeDashoffset = circumference * (1 - progress);
-        
-        const r = Math.round(startColor.r*(1-progress) + endColor.r*progress);
-        const g = Math.round(startColor.g*(1-progress) + endColor.g*progress);
-        const b = Math.round(startColor.b*(1-progress) + endColor.b*progress);
-        circle.style.stroke = `rgb(${r},${g},${b})`;
-
-        if (i < steps) requestAnimationFrame(update);
-    };
-
-    requestAnimationFrame(update);
-}
-
 // ===== 打卡事件（改良版） =====
+// ===== 打卡事件（改良版，可處理一般打卡與補打卡） =====
 async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
     const ip = await getIP();
     const wrapper = document.getElementById("countdownWrapper");
@@ -128,7 +102,7 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     const startColor = isMakeup ? {r:243, g:156, b:18} : {r:52, g:152, b:219};
     const endColor = isMakeup ? {r:255, g:200, b:0} : {r:46, g:204, b:113};
 
-    // 非阻塞動畫函式
+    // 非阻塞動畫
     function animateCircleAsync(circle, startColor, endColor, duration=1000) {
         return new Promise(resolve => {
             const radius = 60;
@@ -163,7 +137,6 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
     }).then(res => res.json());
 
-    // 同時啟動動畫與 API
     const [data] = await Promise.all([apiPromise, animateCircleAsync(circle, startColor, endColor, 1000)]);
 
     wrapper.style.display = "none";
@@ -199,6 +172,35 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     // 更新今日紀錄
     updateTodayRecords();
 }
+
+// ===== 按鈕事件 =====
+document.getElementById("btnStart").onclick = () => performClockIn("上班");
+document.getElementById("btnEnd").onclick = () => performClockIn("下班");
+
+document.getElementById("btnMakeup").onclick = async () => {
+    const { value } = await Swal.fire({
+        title:"補打卡設定",
+        html: `
+          <input type="date" id="d" class="swal2-input">
+          <input type="time" id="t" class="swal2-input">
+          <select id="s" class="swal2-select">
+            <option>上班</option>
+            <option>下班</option>
+          </select>`,
+        focusConfirm:false,
+        preConfirm:() => [
+            document.getElementById("d").value,
+            document.getElementById("t").value,
+            document.getElementById("s").value
+        ],
+        showCancelButton:true
+    });
+
+    if (value) {
+        const [date, time, status] = value;
+        performClockIn(status, date, time, true);
+    }
+};
 
 
 // ===== 修正時間格式（解決 1899） =====
