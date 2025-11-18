@@ -119,46 +119,82 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     const ip = await getIP();
     const wrapper = document.getElementById("countdownWrapper");
     const circle = document.getElementById("circleProgress");
+    const text = document.getElementById("countdownText");
 
     wrapper.style.display = "block";
+    text.textContent = isMakeup ? "補打卡中..." : "打卡中...";
 
-    animateCircle(
-        circle,
-        status === "上班" ? {r:52,g:152,b:219} : {r:46,g:204,b:113},
-        status === "上班" ? {r:46,g:204,b:113} : {r:231,g:76,b:60},
-        400
-    );
+    // 顏色設定
+    const startColor = isMakeup ? {r:243, g:156, b:18} : {r:52, g:152, b:219};
+    const endColor = isMakeup ? {r:255, g:200, b:0} : {r:46, g:204, b:113};
 
+    const radius = 60;
+    const circumference = 2 * Math.PI * radius;
+    circle.style.strokeDasharray = circumference;
+    circle.style.strokeDashoffset = 0;
+
+    // 動畫 3 秒
+    const steps = 60;
+    for(let i=0;i<=steps;i++){
+        await new Promise(r=>setTimeout(r,50));
+        const progress = i/steps;
+        circle.style.strokeDashoffset = circumference * (1-progress);
+
+        const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
+        const gC = Math.round(startColor.g*(1-progress) + endColor.g*progress);
+        const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
+        circle.style.stroke = `rgb(${rC},${gC},${bC})`;
+    }
+
+    // 呼叫 API
     try {
         const res = await fetch(API_ENDPOINT, {
             method: "POST",
-            body: JSON.stringify({
-                userId: window.userId,
-                displayName: window.userName,
-                status, ip, customDate, customTime, isMakeup
-            })
+            body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
         });
-
         const data = await res.json();
-        wrapper.style.display = "none";
+        wrapper.style.display="none";
 
-        if (data.message.includes("成功")) {
+        if(data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
             Swal.fire({
-                icon:"success",
-                title:"打卡成功",
-                text:`時間：${data.date} ${data.time}`,
-                timer:2000,
-                showConfirmButton:false
+                icon: "success",
+                title: "🎉 打卡成功！",
+                html: `<strong>打卡時間：</strong> ${data.date} ${data.time}`,
+                showConfirmButton: false,
+                timer: 4000,
+                backdrop: "rgba(0,0,0,0.5)"
+            });
+        } else if(data.message.includes("成功")) {
+            Swal.fire({
+                icon: "warning",
+                title: `<span style="font-size: 20px; color: #e67e22;">⚠ 連線錯誤，切換網路再試</span>`,
+                html: `<div style="font-size: 16px; color: #3498db;font-weight: bold; margin-top: 8px;">◎ 異地打卡請忽略 ◎</div>`,
+                showConfirmButton: false,
+                backdrop: "rgba(0,0,0,0.5)"
             });
         } else {
-            Swal.fire({ icon:"error", title:data.message });
+            Swal.fire({
+                icon: "error",
+                title: "😥 今日已打卡",
+                html: "重複打卡，請確認",
+                showConfirmButton: false,
+                backdrop: "rgba(0,0,0,0.5)"
+            });
         }
 
+        // 更新今日紀錄
         updateTodayRecords();
-    } catch(err) {
-        wrapper.style.display = "none";
-        Swal.fire({ icon:"error", title:"發生錯誤" });
-        console.error(err);
+
+    } catch (error) {
+        wrapper.style.display="none";
+        Swal.fire({
+            icon: "error",
+            title: "😥 發生錯誤",
+            html: "請通知人事部門！",
+            showConfirmButton: false,
+            backdrop: "rgba(0,0,0,0.5)"
+        });
+        console.error("打卡錯誤：", error);
     }
 }
 
