@@ -18,19 +18,8 @@ button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; curso
 #countdownWrapper { margin-top:20px; width:120px; height:120px; position:relative; display:none; }
 #circleBg, #circleProgress { fill:none; stroke-width:12; transform: rotate(-90deg); transform-origin: 50% 50%; }
 #circleBg { stroke:#ddd; }
-#circleProgress { stroke-linecap:round; stroke-dasharray: 339.292; stroke-dashoffset: 0; } 
+#circleProgress { stroke-linecap:round; stroke-dasharray: 377; stroke-dashoffset: 0; }
 #countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; text-align:center; white-space:nowrap; }
-.record-card {
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    color: white;
-    font-weight: bold;
-}
-.record-start { background-color: #3498db; }
-.record-end { background-color: #e74c3c; }
-.record-makeup { background-color: #f39c12; }
-.record-time { font-size: 20px; margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -45,8 +34,8 @@ button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; curso
 
 <div id="countdownWrapper">
     <svg width="120" height="120">
-        <circle id="circleBg" cx="60" cy="60" r="54"></circle>
-        <circle id="circleProgress" cx="60" cy="60" r="54"></circle>
+        <circle id="circleBg" cx="60" cy="60" r="60"></circle>
+        <circle id="circleProgress" cx="60" cy="60" r="60"></circle>
     </svg>
     <div id="countdownText">打卡中...</div>
 </div>
@@ -55,47 +44,24 @@ button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; curso
 
 <script>
 const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwnB1RMH7LpwNNU-5a0pVQIlXaMnOVj62QgjqBfQmIxb5EYvaZIU2gEjbitggBrSHQ_/exec";
-const COMPANY_IPS = ["114.34.60.48"];
+const COMPANY_IPS = ["114.34.60.48"]; // 公司IP清單
 
-// ===== 自動清理過期緩存 =====
-function cleanOldCache() {
-    const today = new Date().toISOString().slice(0,10);
-    for (let key in localStorage) {
-        if (key.startsWith("cachedIP_") || key.startsWith("todayRecords_")) {
-            if (!key.includes(today)) localStorage.removeItem(key);
-        }
-    }
-}
-
-// 取得 IP，支援每日緩存
 async function getIP() {
-    const today = new Date().toISOString().slice(0,10);
-    const cacheKey = `cachedIP_${today}`;
-    const cachedIP = localStorage.getItem(cacheKey);
-    if (cachedIP) return cachedIP;
-
     try {
         const res = await fetch("https://api.ipify.org?format=json");
         const data = await res.json();
-        if (data.ip) localStorage.setItem(cacheKey, data.ip);
-        return data.ip || "";
-    } catch {
-        return "";
-    }
+        return data.ip;
+    } catch { return ""; }
 }
 
-// 初始化使用者資訊
 async function updateUserInfo() {
     await liff.init({ liffId: "2008504718-nmXP0WRV" });
-    if (!liff.isLoggedIn()) { liff.login(); return; }
-
+    if(!liff.isLoggedIn()) liff.login();
     const profile = await liff.getProfile();
     window.userId = profile.userId;
     window.userName = profile.displayName;
-
     const ip = await getIP();
     const isCompany = COMPANY_IPS.includes(ip);
-
     document.getElementById("userInfo").textContent = profile.displayName + " 您好";
     const statusEl = document.getElementById("statusInfo");
     statusEl.textContent = isCompany ? "已連線公司網路" : "不明連線";
@@ -103,145 +69,129 @@ async function updateUserInfo() {
     statusEl.style.color = isCompany ? "green" : "red";
 }
 
-// 圓圈動畫
-function animateCircle(circle, wrapper, startColor, endColor, isMakeup) {
-    return new Promise(resolve => {
-        wrapper.style.display = "block";
-        const text = document.getElementById("countdownText");
-        text.textContent = isMakeup ? "補打卡中..." : "打卡中...";
-        const radius = 54;
-        const circumference = 2 * Math.PI * radius;
-        circle.style.strokeDasharray = circumference;
-        circle.style.strokeDashoffset = circumference;
-
-        let startTime;
-        function step(timestamp) {
-            if (!startTime) startTime = timestamp;
-            const progress = Math.min((timestamp - startTime) / 1500, 1);
-            circle.style.strokeDashoffset = circumference * (1 - progress);
-
-            const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
-            const gC = Math.round(startColor.g*(1-progress) + endColor.g*progress);
-            const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
-            circle.style.stroke = `rgb(${rC},${gC},${bC})`;
-
-            if (progress < 1) requestAnimationFrame(step);
-            else resolve();
-        }
-        requestAnimationFrame(step);
-    });
-}
-
-// 更新今日打卡紀錄（先讀緩存，再非同步更新）
-async function updateTodayRecords() {
-    const today = new Date().toISOString().slice(0,10);
-    const cacheKey = `todayRecords_${window.userId}_${today}`;
-    const container = document.getElementById("todayRecords");
-
-    // 先顯示緩存
-    let data = [];
-    try { 
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) data = JSON.parse(cached);
-    } catch { data = []; }
-
-    renderRecords(data);
-
-    // 非同步更新最新紀錄
-    try {
-        const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
-        const freshData = await res.json();
-        if (freshData) {
-            localStorage.setItem(cacheKey, JSON.stringify(freshData));
-            renderRecords(freshData);
-        }
-    } catch {}
-}
-
-// 渲染打卡紀錄
-function renderRecords(data) {
-    const container = document.getElementById("todayRecords");
-    if (!data || data.length === 0) {
-        container.innerHTML = "今日打卡紀錄：<br>無";
-        return;
-    }
-
-    let html = "<b>今日打卡紀錄：</b><br><br>";
-    let hasStart=false, hasEnd=false;
-
-    data.forEach(r => {
-        let classes = [];
-        if (r.status === "上班") classes.push("record-start");
-        else if (r.status === "下班") classes.push("record-end");
-        if (r.time.includes("(待審核)")) classes.push("record-makeup");
-
-        html += `<div class="record-card ${classes.join(' ')}"><div>${r.status}</div><div class="record-time">🕒 ${r.time}</div></div>`;
-        if (r.status === "上班") hasStart=true;
-        if (r.status === "下班") hasEnd=true;
-    });
-
-    if (hasStart && !hasEnd) {
-        html += `<div style="color:#e67e22; font-size:16px; margin-top:10px;">⚠ 您尚未下班</div>`;
-    }
-
-    container.innerHTML = html;
-}
-
-// 執行打卡
 async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
     const ip = await getIP();
     const wrapper = document.getElementById("countdownWrapper");
     const circle = document.getElementById("circleProgress");
-    const startColor = isMakeup ? {r:243,g:156,b:18} : {r:52,g:152,b:219};
-    const endColor = isMakeup ? {r:255,g:200,b:0} : {r:46,g:204,b:113};
+    const text = document.getElementById("countdownText");
 
-    await animateCircle(circle, wrapper, startColor, endColor, isMakeup);
+    wrapper.style.display = "block";
+    text.textContent = isMakeup ? "補打卡中..." : "打卡中...";
 
+    // 顏色設定
+    const startColor = isMakeup ? {r:243, g:156, b:18} : {r:52, g:152, b:219};
+    const endColor = isMakeup ? {r:255, g:200, b:0} : {r:46, g:204, b:113};
+
+    const radius = 60;
+    const circumference = 2 * Math.PI * radius;
+    circle.style.strokeDasharray = circumference;
+    circle.style.strokeDashoffset = 0;
+
+    // 動畫 3 秒
+    const steps = 60;
+    for(let i=0;i<=steps;i++){
+        await new Promise(r=>setTimeout(r,50));
+        const progress = i/steps;
+        circle.style.strokeDashoffset = circumference * (1-progress);
+
+        const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
+        const gC = Math.round(startColor.g*(1-progress) + endColor.g*progress);
+        const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
+        circle.style.stroke = `rgb(${rC},${gC},${bC})`;
+    }
+
+    // 呼叫 API
     try {
         const res = await fetch(API_ENDPOINT, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
         });
         const data = await res.json();
-        wrapper.style.display = "none";
-
-        if (data.message.includes("成功")) {
-            Swal.fire({ icon:"success", title:"🎉 打卡成功！", html:`<strong>打卡時間：</strong> ${data.date} ${data.time}`, showConfirmButton:false, timer:4000, backdrop:"rgba(0,0,0,0.5)" });
-
-            // 更新今日打卡緩存
-            const today = new Date().toISOString().slice(0,10);
-            const cacheKey = `todayRecords_${window.userId}_${today}`;
-            let records = JSON.parse(localStorage.getItem(cacheKey) || "[]");
-            records.push({ status, time: `${data.time}${isMakeup ? " (待審核)" : ""}` });
-            localStorage.setItem(cacheKey, JSON.stringify(records));
-
-            // 立即渲染
-            renderRecords(records);
-        } else {
-            Swal.fire({ icon:"error", title:"😥 今日已打卡或發生錯誤", showConfirmButton:false, backdrop:"rgba(0,0,0,0.5)" });
-        }
-    } catch (err) {
         wrapper.style.display="none";
-        Swal.fire({ icon:"error", title:"😥 發生錯誤", html:"請通知人事部門！", showConfirmButton:false, backdrop:"rgba(0,0,0,0.5)" });
-        console.error("打卡錯誤：", err);
+
+        if(data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
+            Swal.fire({
+                icon: "success",
+                title: "🎉 打卡成功！",
+                html: `<strong>打卡時間：</strong> ${data.date} ${data.time}`,
+                showConfirmButton: false,
+                timer: 4000,
+                backdrop: "rgba(0,0,0,0.5)"
+            });
+        } else if(data.message.includes("成功")) {
+            Swal.fire({
+                icon: "warning",
+                title: `<span style="font-size: 20px; color: #e67e22;">⚠ 連線錯誤，切換網路再試</span>`,
+                html: `<div style="font-size: 16px; color: #3498db;font-weight: bold; margin-top: 8px;">◎ 異地打卡請忽略 ◎</div>`,
+                showConfirmButton: false,
+                backdrop: "rgba(0,0,0,0.5)"
+            });
+        } else {
+            Swal.fire({
+                icon: "error",
+                title: "😥 今日已打卡",
+                html: "重複打卡，請確認",
+                showConfirmButton: false,
+                backdrop: "rgba(0,0,0,0.5)"
+            });
+        }
+
+        // 更新今日紀錄
+        updateTodayRecords();
+
+    } catch (error) {
+        wrapper.style.display="none";
+        Swal.fire({
+            icon: "error",
+            title: "😥 發生錯誤",
+            html: "請通知人事部門！",
+            showConfirmButton: false,
+            backdrop: "rgba(0,0,0,0.5)"
+        });
+        console.error("打卡錯誤：", error);
     }
 }
 
-// 綁定按鈕事件
+async function updateTodayRecords() {
+    const today = new Date().toISOString().slice(0,10);
+    const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
+    const data = await res.json();
+    const container = document.getElementById("todayRecords");
+    if (data.length===0) container.textContent = "今日打卡紀錄：無";
+    else container.innerHTML = "今日打卡紀錄：<br>" + data.map(r=>`${r.status} ${r.time}${r.isMakeup?' (補打卡)':''}`).join("<br>");
+}
+
 document.getElementById("btnStart").onclick = ()=>performClockIn("上班");
 document.getElementById("btnEnd").onclick = ()=>performClockIn("下班");
-document.getElementById("btnMakeup").onclick = ()=>performClockIn("上班", "", "", true);
+document.getElementById("btnMakeup").onclick = async ()=>{
+    const { value: formValues } = await Swal.fire({
+        title: '補打卡設定',
+        html: `<label>日期:</label><input type="date" id="swalDate" class="swal2-input"><br>
+               <label>時間:</label><input type="time" id="swalTime" class="swal2-input"><br>
+               <label>動態:</label>
+               <select id="swalStatus" class="swal2-select">
+                   <option>上班</option><option>下班</option>
+               </select>`,
+        focusConfirm: false,
+        preConfirm: () => [
+            document.getElementById('swalDate').value,
+            document.getElementById('swalTime').value,
+            document.getElementById('swalStatus').value
+        ],
+        showCancelButton:true,
+        confirmButtonText:'完成'
+    });
+    if(formValues) performClockIn(formValues[2], formValues[0], formValues[1], true);
+};
 
-// 頁面加載
 window.onload = async ()=>{
-    cleanOldCache();            // 清理前一天緩存
     await updateUserInfo();
-    updateTodayRecords();        // 先顯示緩存，再更新最新資料
+    await updateTodayRecords();
 };
 </script>
 </body>
 </html>
+
 
 
 
