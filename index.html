@@ -132,30 +132,43 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
 async function updateTodayRecords() {
     const now = new Date();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const today = now.toLocaleDateString('zh-TW', { timeZone: tz }).replace(/\//g, '/');
+
+    const today = now.toLocaleDateString('zh-TW', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).replace(/\//g, '/');
 
     const ip = await getIP();
     const isCompany = COMPANY_IPS.includes(ip);
 
-    function fixTimeFormat(timeValue) {
-        // 若已經是字串格式 HH:mm:ss → 直接回傳
-        if (typeof timeValue === "string" && timeValue.includes(":")) {
-            return timeValue;
+    // ⭐ 統一轉換所有可能格式的時間 → HH:mm:ss
+    function fixTime(timeVal) {
+        // 1. 如果是正確的 "HH:mm:ss" 字串 → 直接回傳
+        if (typeof timeVal === "string" && /^\d{2}:\d{2}:\d{2}$/.test(timeVal)) {
+            return timeVal;
         }
 
-        // 若是 Google sheet 儲存的小數（Excel time）
-        if (!isNaN(timeValue)) {
-            const d = new Date((timeValue - 25569) * 86400 * 1000);
+        // 2. 如果是 ISO 字串 (像 1899-12-30T05:37:13.000Z)
+        if (typeof timeVal === "string" && timeVal.includes("T")) {
+            const d = new Date(timeVal);
             return d.toLocaleTimeString("zh-TW", { hour12: false });
         }
 
-        // 若是 ISO 格式
-        if (typeof timeValue === "string" && timeValue.includes("T")) {
-            const d = new Date(timeValue);
+        // 3. 如果是 Google Sheet 小數格式 (例如 0.23456)
+        if (typeof timeVal === "number") {
+            const excelEpoch = (timeVal - 25569) * 86400 * 1000;
+            const d = new Date(excelEpoch);
             return d.toLocaleTimeString("zh-TW", { hour12: false });
         }
 
-        return timeValue;
+        // 4. 如果是 GAS 回傳的 Date 物件
+        if (Object.prototype.toString.call(timeVal) === "[object Date]") {
+            return timeVal.toLocaleTimeString("zh-TW", { hour12: false });
+        }
+
+        return timeVal; // fallback
     }
 
     try {
@@ -168,18 +181,16 @@ async function updateTodayRecords() {
             return;
         }
 
-        container.innerHTML = "今日打卡紀錄：<br>" + data
-            .map(r => {
-                let timeStr = fixTimeFormat(r.time);
+        container.innerHTML = "今日打卡紀錄：<br>" + data.map(r => {
+            const time = fixTime(r.time);
 
-                let label =
-                    r.isMakeup
-                    ? "(補打卡-待審核)"
-                    : (isCompany ? "(公司網路)" : "(非公司網路)");
+            let label = r.isMakeup
+                ? "(補打卡-待審核)"
+                : (isCompany ? "(公司網路)" : "(非公司網路)");
 
-                return `${r.status} ${timeStr} ${label}`;
-            })
-            .join("<br>");
+            return `${r.status} ${time} ${label}`;
+        }).join("<br>");
+
     } catch (err) {
         console.error("取得今日打卡紀錄錯誤：", err);
         document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：讀取失敗";
