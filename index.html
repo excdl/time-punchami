@@ -104,18 +104,26 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     circle.style.strokeDasharray = circumference;
     circle.style.strokeDashoffset = circumference;
 
-    let progress = 0; // 0~1
-    let lastTime = performance.now();
+    let progress = 0;          // 0~1
     let animationRunning = true;
+    let lastTime = performance.now();
+    let apiCompleted = false;
+    let estimatedDuration = 1500; // 預估 API 時間 (毫秒)，自動調整
 
-    // 動畫函數（連續增長，直到 API 回來）
+    // 動態自適應動畫
     function animate(now) {
         const delta = now - lastTime;
         lastTime = now;
 
-        // 每秒增加 60% → delta/1000*0.6
-        progress += (delta / 1000) * 0.6;
-        if(progress > 0.95) progress = 0.95; // 最大 95% 等待 API
+        if(!apiCompleted) {
+            // 動態調整增速：讓 progress 在預估時間內接近 0.95
+            progress += delta / estimatedDuration * 0.95;
+            if(progress > 0.95) progress = 0.95;
+        } else {
+            // API 完成 → 進度直接到 100%
+            progress += (1 - progress) * 0.2; // 平滑過渡到 1
+            if(progress > 0.999) progress = 1;
+        }
 
         circle.style.strokeDashoffset = circumference * (1 - progress);
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -123,10 +131,12 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
         circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
-        if(animationRunning) requestAnimationFrame(animate);
+        if(progress < 1) requestAnimationFrame(animate);
     }
 
     requestAnimationFrame(animate);
+
+    const startTime = performance.now();
 
     // 發送 API
     let data;
@@ -141,13 +151,16 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         data = { message: "失敗" };
     }
 
-    // API 回來 → 進度立即到 100%，停止動畫
-    animationRunning = false;
-    progress = 1;
-    circle.style.strokeDashoffset = 0;
-    circle.style.stroke = `rgb(${endColor.r},${endColor.g},${endColor.b})`;
+    const endTime = performance.now();
+    const actualDuration = endTime - startTime;
+    // 調整預估時間，讓下次更自然
+    estimatedDuration = (estimatedDuration + actualDuration) / 2;
 
-    setTimeout(() => { wrapper.style.display = "none"; }, 500);
+    // 標記 API 已完成
+    apiCompleted = true;
+
+    // 0.3 秒後隱藏動畫圈
+    setTimeout(() => { wrapper.style.display = "none"; }, 300);
 
     // 顯示結果
     if(data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
