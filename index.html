@@ -87,7 +87,6 @@ async function updateUserInfo() {
     statusEl.style.color = isCompany ? "green" : "red";
 }
 
-// ===== 打卡事件（改良版，可處理一般打卡與補打卡） =====
 async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
     const ip = await getIP();
     const wrapper = document.getElementById("countdownWrapper");
@@ -130,41 +129,54 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         });
     }
 
-    // 同步動畫與 API
-    const apiPromise = fetch(API_ENDPOINT, {
-        method: "POST",
-        body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
-    }).then(res => res.json());
+    // 啟動動畫（非阻塞）
+    animateCircleAsync(circle, startColor, endColor, 1000).then(() => {
+        // 動畫完成自動隱藏
+        wrapper.style.display = "none";
+    });
 
-    const [data] = await Promise.all([apiPromise, animateCircleAsync(circle, startColor, endColor, 1000)]);
-
-    wrapper.style.display = "none";
-
-    // 顯示結果
-    if(data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
-        Swal.fire({
-            icon: "success",
-            title: "🎉 打卡成功！",
-            html: `<strong>打卡時間：</strong> ${data.date} ${data.time}`,
-            showConfirmButton: false,
-            timer: 4000,
-            backdrop: "rgba(0,0,0,0.5)"
+    // 發送 API 並立即顯示結果
+    try {
+        const res = await fetch(API_ENDPOINT, {
+            method: "POST",
+            body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
         });
-    } else if(data.message.includes("成功")) {
-        Swal.fire({
-            icon: "warning",
-            title: `<span style="font-size: 20px; color: #e67e22;">⚠ 連線錯誤，切換網路再試</span>`,
-            html: `<div style="font-size: 16px; color: #3498db;font-weight: bold; margin-top: 8px;">◎ 異地打卡請忽略 ◎</div>`,
-            showConfirmButton: false,
-            backdrop: "rgba(0,0,0,0.5)"
-        });
-    } else {
+        const data = await res.json();
+
+        // 立即顯示結果
+        if(data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
+            Swal.fire({
+                icon: "success",
+                title: "🎉 打卡成功！",
+                html: `<strong>打卡時間：</strong> ${data.date} ${data.time}`,
+                showConfirmButton: false,
+                timer: 4000,
+                backdrop: "rgba(0,0,0,0.5)"
+            });
+        } else if(data.message.includes("成功")) {
+            Swal.fire({
+                icon: "warning",
+                title: `<span style="font-size: 20px; color: #e67e22;">⚠ 非公司網路，切換網路再試</span>`,
+                html: `<div style="font-size: 16px; color: #3498db;font-weight: bold; margin-top: 8px;">◎ 異地打卡請忽略 ◎</div>`,
+                showConfirmButton: false,
+                backdrop: "rgba(0,0,0,0.5)"
+            });
+        } else {
+            Swal.fire({
+                icon: "error",
+                title: "😥 今日已打卡",
+                html: "重複打卡，請確認",
+                showConfirmButton: false,
+                backdrop: "rgba(0,0,0,0.5)"
+            });
+        }
+    } catch (err) {
+        console.error(err);
         Swal.fire({
             icon: "error",
-            title: "😥 今日已打卡",
-            html: "重複打卡，請確認",
-            showConfirmButton: false,
-            backdrop: "rgba(0,0,0,0.5)"
+            title: "❌ 打卡失敗",
+            text: "請稍後再試",
+            showConfirmButton: true
         });
     }
 
@@ -172,34 +184,6 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     updateTodayRecords();
 }
 
-// ===== 按鈕事件 =====
-document.getElementById("btnStart").onclick = () => performClockIn("上班");
-document.getElementById("btnEnd").onclick = () => performClockIn("下班");
-
-document.getElementById("btnMakeup").onclick = async () => {
-    const { value } = await Swal.fire({
-        title:"補打卡設定",
-        html: `
-          <input type="date" id="d" class="swal2-input">
-          <input type="time" id="t" class="swal2-input">
-          <select id="s" class="swal2-select">
-            <option>上班</option>
-            <option>下班</option>
-          </select>`,
-        focusConfirm:false,
-        preConfirm:() => [
-            document.getElementById("d").value,
-            document.getElementById("t").value,
-            document.getElementById("s").value
-        ],
-        showCancelButton:true
-    });
-
-    if (value) {
-        const [date, time, status] = value;
-        performClockIn(status, date, time, true);
-    }
-};
 
 
 // ===== 修正時間格式（解決 1899） =====
