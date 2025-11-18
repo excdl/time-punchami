@@ -105,20 +105,12 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     circle.style.strokeDasharray = circumference;
     circle.style.strokeDashoffset = circumference;
 
-    let progress = 0; // 動畫進度 0~1
-    let animationFrame;
+    let progress = 0; // 0~1
 
-    // 動畫函數
-    function animateCircle(targetProgress) {
-        const start = progress;
-        const duration = 500; // 過渡到 targetProgress 的時間
-        const startTime = performance.now();
-
-        function step(now) {
-            const elapsed = now - startTime;
-            const ratio = Math.min(elapsed / duration, 1);
-            progress = start + (targetProgress - start) * ratio;
-
+    // 模擬實時進度函數
+    function animateProgress() {
+        if(progress < 0.95) { // 先不超過 95%，API 未回應時逐漸增加
+            progress += 0.01; // 每次增加 1%
             circle.style.strokeDashoffset = circumference * (1 - progress);
 
             const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -126,14 +118,11 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
             const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
             circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
-            if(ratio < 1) animationFrame = requestAnimationFrame(step);
+            requestAnimationFrame(animateProgress);
         }
-
-        animationFrame = requestAnimationFrame(step);
     }
 
-    // 啟動初始動畫 (倒數/進度 0→0.3)
-    animateCircle(0.3);
+    animateProgress(); // 開始動畫
 
     // 發送 API
     let data;
@@ -148,10 +137,12 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         data = { message: "失敗" };
     }
 
-    // API 完成後進度立即衝到 100%
-    animateCircle(1);
+    // API 回來後，進度立即到 100%
+    progress = 1;
+    circle.style.strokeDashoffset = 0;
+    circle.style.stroke = `rgb(${endColor.r},${endColor.g},${endColor.b})`;
 
-    // 0.5 秒後隱藏動畫圈圈
+    // 0.5 秒後隱藏動畫
     setTimeout(() => {
         wrapper.style.display = "none";
     }, 500);
@@ -169,7 +160,7 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     } else if(data.message.includes("成功")) {
         Swal.fire({
             icon: "warning",
-            title: `<span style="font-size: 20px; color: #e67e22;">⚠ 非公司網路，切換網路再試</span>`,
+            title: `<span style="font-size: 20px; color: #e67e22;">⚠ 連線錯誤，切換網路再試</span>`,
             html: `<div style="font-size: 16px; color: #3498db;font-weight: bold; margin-top: 8px;">◎ 異地打卡請忽略 ◎</div>`,
             showConfirmButton: false,
             backdrop: "rgba(0,0,0,0.5)"
@@ -178,12 +169,13 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         Swal.fire({
             icon: "error",
             title: "😥 今日已打卡",
-            html: "重複打卡",
+            html: "重複打卡，請確認",
             showConfirmButton: false,
             backdrop: "rgba(0,0,0,0.5)"
         });
     }
 
+    // 更新今日紀錄
     updateTodayRecords();
 }
 
