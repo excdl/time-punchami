@@ -7,24 +7,97 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
-body { font-family: Arial; display:flex; flex-direction:column; align-items:center; margin:20px;}
-#userInfo { text-align:center; font-size:18px; margin-bottom:10px; }
-#statusInfo { text-align:center; font-size:16px; margin-bottom:20px; padding:5px 15px; border-radius:20px; display:inline-block; }
-button { margin:5px; padding:10px 20px; font-size:16px; border-radius:8px; cursor:pointer; font-weight:bold; }
+body { 
+    font-family: Arial; 
+    display:flex; 
+    flex-direction:column; 
+    align-items:center; 
+    margin:20px;
+}
+
+#userInfo { 
+    text-align:center; 
+    font-size:18px; 
+    margin-bottom:10px; 
+}
+
+#statusInfo { 
+    text-align:center; 
+    font-size:16px; 
+    margin-bottom:20px; 
+    padding:5px 15px; 
+    border-radius:20px; 
+    display:inline-block; 
+}
+
+.buttons {
+    display: flex;
+    flex-wrap: nowrap;       /* 不換行 */
+    justify-content: space-between; /* 平均分配 */
+    width: 100%;
+    max-width: 400px;        /* 可依需求調整 */
+    margin-bottom: 10px;     
+}
+
+.buttons button {
+    flex: 1;                 /* 平均寬度 */
+    margin: 2px;             /* 按鈕間距 */
+    padding: 10px 0;         
+    font-size: 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
 #btnStart { background-color:#3498db; color:white; }
 #btnEnd { background-color:#e74c3c; color:white; }
 #btnMakeup { background-color:#f39c12; color:white; }
-#todayRecords { margin-top:20px; width:90%; border:1px solid #ccc; padding:10px; border-radius:8px; min-height:50px; }
-#countdownWrapper { margin-top:20px; width:120px; height:120px; position:relative; display:none; }
-#circleProgress { fill:none; stroke-width:12; stroke-linecap:round; transform: rotate(-90deg); transform-origin: 50% 50%; stroke-dasharray: 314; stroke-dashoffset: 0; }
-#countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; text-align:center; white-space:nowrap; }
+
+#todayRecords { 
+    margin-top:20px; 
+    width:90%; 
+    border:1px solid #ccc; 
+    padding:10px; 
+    border-radius:8px; 
+    min-height:50px; 
+    text-align:center;
+}
+
+#countdownWrapper { 
+    margin-top:20px; 
+    width:120px; 
+    height:120px; 
+    position:relative; 
+    display:none; 
+}
+
+#circleProgress { 
+    fill:none; 
+    stroke-width:12; 
+    stroke-linecap:round; 
+    transform: rotate(-90deg); 
+    transform-origin: 50% 50%; 
+    stroke-dasharray: 314; 
+    stroke-dashoffset: 0; 
+}
+
+#countdownText { 
+    position:absolute; 
+    top:50%; 
+    left:50%; 
+    transform:translate(-50%,-50%); 
+    font-weight:bold; 
+    text-align:center; 
+    white-space:nowrap; 
+}
 </style>
 </head>
 <body>
 
 <div id="userInfo">正在獲取使用者資訊...</div>
 <div id="statusInfo"></div>
-<div>
+
+<div class="buttons">
     <button id="btnStart">上班打卡</button>
     <button id="btnEnd">下班打卡</button>
     <button id="btnMakeup">補打卡</button>
@@ -66,13 +139,13 @@ async function updateUserInfo() {
     statusEl.style.color = isCompany ? "green" : "red";
 }
 
-// 非阻塞動畫
+// 加速倒數動畫 (1秒完成)
 function animateCircle(circle, startColor, endColor, duration=1000) {
     const radius = 50;
     const circumference = 2 * Math.PI * radius;
     circle.style.strokeDasharray = circumference;
     circle.style.strokeDashoffset = circumference;
-    const steps = 60;
+    const steps = 30; // 減少步數加速動畫
     let i = 0;
     const interval = setInterval(() => {
         i++;
@@ -98,7 +171,7 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     const startColor = isMakeup ? {r:243,g:156,b:18} : (status==="上班" ? {r:52,g:152,b:219} : {r:46,g:204,b:113});
     const endColor = isMakeup ? {r:255,g:200,b:0} : (status==="上班" ? {r:46,g:204,b:113} : {r:231,g:76,b:60});
 
-    animateCircle(circle, startColor, endColor, 1000);
+    animateCircle(circle, startColor, endColor, 800); // 加速至0.8秒完成
 
     try {
         const res = await fetch(API_ENDPOINT, {
@@ -125,7 +198,7 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
 }
 
 async function updateTodayRecords() {
-    const today = new Date().toISOString().slice(0,10);
+    const today = new Date().toISOString().slice(0,10).replace(/-/g,"/"); // Google Sheet 兼容格式 2025/11/18
     const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
     const data = await res.json();
     const container = document.getElementById("todayRecords");
@@ -162,6 +235,7 @@ window.onload = async ()=>{
 </script>
 </body>
 </html>
+
 
 
 
