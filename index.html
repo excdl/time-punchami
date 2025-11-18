@@ -87,7 +87,6 @@ async function updateUserInfo() {
     statusEl.style.color = isCompany ? "green" : "red";
 }
 
-// ===== 打卡事件（改良版） =====
 // ===== 打卡事件（改良版，可處理一般打卡與補打卡） =====
 async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
     const ip = await getIP();
