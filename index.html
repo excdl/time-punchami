@@ -96,7 +96,6 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     wrapper.style.display = "block";
     text.textContent = isMakeup ? "補打卡中..." : "打卡中...";
 
-    // 顏色設定
     const startColor = isMakeup ? {r:243, g:156, b:18} : {r:52, g:152, b:219};
     const endColor = isMakeup ? {r:255, g:200, b:0} : {r:46, g:204, b:113};
 
@@ -106,23 +105,28 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     circle.style.strokeDashoffset = circumference;
 
     let progress = 0; // 0~1
+    let lastTime = performance.now();
+    let animationRunning = true;
 
-    // 模擬實時進度函數
-    function animateProgress() {
-        if(progress < 0.95) { // 先不超過 95%，API 未回應時逐漸增加
-            progress += 0.01; // 每次增加 1%
-            circle.style.strokeDashoffset = circumference * (1 - progress);
+    // 動畫函數（連續增長，直到 API 回來）
+    function animate(now) {
+        const delta = now - lastTime;
+        lastTime = now;
 
-            const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
-            const gC = Math.round(startColor.g*(1-progress) + endColor.g*progress);
-            const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
-            circle.style.stroke = `rgb(${rC},${gC},${bC})`;
+        // 每秒增加 60% → delta/1000*0.6
+        progress += (delta / 1000) * 0.6;
+        if(progress > 0.95) progress = 0.95; // 最大 95% 等待 API
 
-            requestAnimationFrame(animateProgress);
-        }
+        circle.style.strokeDashoffset = circumference * (1 - progress);
+        const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
+        const gC = Math.round(startColor.g*(1-progress) + endColor.g*progress);
+        const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
+        circle.style.stroke = `rgb(${rC},${gC},${bC})`;
+
+        if(animationRunning) requestAnimationFrame(animate);
     }
 
-    animateProgress(); // 開始動畫
+    requestAnimationFrame(animate);
 
     // 發送 API
     let data;
@@ -137,15 +141,13 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         data = { message: "失敗" };
     }
 
-    // API 回來後，進度立即到 100%
+    // API 回來 → 進度立即到 100%，停止動畫
+    animationRunning = false;
     progress = 1;
     circle.style.strokeDashoffset = 0;
     circle.style.stroke = `rgb(${endColor.r},${endColor.g},${endColor.b})`;
 
-    // 0.5 秒後隱藏動畫
-    setTimeout(() => {
-        wrapper.style.display = "none";
-    }, 500);
+    setTimeout(() => { wrapper.style.display = "none"; }, 500);
 
     // 顯示結果
     if(data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
@@ -175,7 +177,6 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         });
     }
 
-    // 更新今日紀錄
     updateTodayRecords();
 }
 
