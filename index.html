@@ -10,14 +10,7 @@
 body { font-family: Arial; display:flex; flex-direction:column; align-items:center; margin:20px;}
 #userInfo { text-align:center; font-size:18px; margin-bottom:10px; }
 #statusInfo { text-align:center; font-size:16px; margin-bottom:20px; padding:5px 15px; border-radius:20px; display:inline-block; }
-.buttons-container {
-    display:flex;
-    flex-direction:row;
-    justify-content:space-between;
-    width:100%;
-    max-width:400px;
-    gap:10px;
-}
+.buttons-container { display:flex; flex-direction:row; justify-content:space-between; width:100%; max-width:400px; gap:10px;}
 button { flex:1; padding:10px 0; font-size:16px; border-radius:8px; cursor:pointer; font-weight:bold; }
 #btnStart { background-color:#3498db; color:white; }
 #btnEnd { background-color:#e74c3c; color:white; }
@@ -48,7 +41,7 @@ button { flex:1; padding:10px 0; font-size:16px; border-radius:8px; cursor:point
 <div id="todayRecords">今日打卡紀錄：</div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbx5XnRXiPQ7mpJnLZWs94slpOwLEo3rIJ8W_qW8RqvbLL86fCUASQqx1D6cYObpnRE1/exec";
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwpZMefX2_x58SLo7cyzG_MzsVjZNV1x3swHIXRRPCinWYYVpLam0Gr4Qxx2R27gOFP/exec";
 const COMPANY_IPS = ["114.34.60.48"];
 
 async function getIP() {
@@ -69,7 +62,7 @@ async function updateUserInfo() {
     const isCompany = COMPANY_IPS.includes(ip);
     document.getElementById("userInfo").textContent = profile.displayName + " 您好";
     const statusEl = document.getElementById("statusInfo");
-    statusEl.textContent = isCompany ? "已連線公司網路" : "不明連線";
+    statusEl.textContent = isCompany ? "已連線公司網路" : "非公司網路";
     statusEl.style.backgroundColor = isCompany ? "#d4f4dd" : "#f8d4d4";
     statusEl.style.color = isCompany ? "green" : "red";
 }
@@ -121,15 +114,14 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         const data = await res.json();
         wrapper.style.display="none";
 
-        if(data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
-            Swal.fire({ icon:"success", title:"🎉 打卡成功！", html:`<strong>打卡時間：</strong>${data.date} ${data.time}`, showConfirmButton:false, timer:2000, backdrop:"rgba(0,0,0,0.5)" });
-        } else if(data.message.includes("成功")) {
-            Swal.fire({ icon:"warning", title:"⚠ 連線錯誤，切換網路再試", showConfirmButton:false, timer:2000, backdrop:"rgba(0,0,0,0.5)" });
+        if(data.message.includes("成功")) {
+            const msgHtml = `<strong>打卡時間：</strong>${data.date} ${data.time}`;
+            Swal.fire({ icon:"success", title:"🎉 打卡成功！", html: msgHtml, showConfirmButton:false, timer:2000, backdrop:"rgba(0,0,0,0.5)" });
         } else {
-            Swal.fire({ icon:"error", title:"😥 今日已打卡", showConfirmButton:false, timer:2000, backdrop:"rgba(0,0,0,0.5)" });
+            Swal.fire({ icon:"error", title:"😥 打卡失敗或已打過", showConfirmButton:false, timer:2000, backdrop:"rgba(0,0,0,0.5)" });
         }
 
-        updateTodayRecords();
+        await updateTodayRecords();
     } catch (error) {
         wrapper.style.display="none";
         Swal.fire({ icon:"error", title:"😥 發生錯誤", showConfirmButton:false, timer:2000, backdrop:"rgba(0,0,0,0.5)" });
@@ -141,18 +133,32 @@ async function updateTodayRecords() {
     const now = new Date();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const today = now.toLocaleDateString('zh-TW', { timeZone: tz }).replace(/\//g, '/'); // yyyy/MM/dd
+    const ip = await getIP();
+    const isCompany = COMPANY_IPS.includes(ip);
 
     try {
         const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
         const data = await res.json();
         const container = document.getElementById("todayRecords");
+
         if (!Array.isArray(data) || data.length === 0) {
             container.innerHTML = "今日打卡紀錄：無";
-        } else {
-            container.innerHTML = "今日打卡紀錄：<br>" + data
-                .map(r => `${r.status} ${r.time}${r.isMakeup ? ' (補打卡)' : ''}`)
-                .join("<br>");
+            return;
         }
+
+        container.innerHTML = "今日打卡紀錄：<br>" + data
+            .map(r => {
+                let timeStr = r.time;
+                if (r.time instanceof Date) {
+                    timeStr = r.time.toLocaleTimeString('zh-TW', { hour12:false });
+                } else if (!r.time.includes(':')) {
+                    const d = new Date((r.time - 25569) * 86400 * 1000);
+                    timeStr = d.toLocaleTimeString('zh-TW', { hour12:false });
+                }
+                let networkLabel = r.isMakeup ? "(補打卡-待審核)" : (isCompany ? "(公司網路)" : "(非公司網路)");
+                return `${r.status} ${timeStr} ${networkLabel}`;
+            })
+            .join("<br>");
     } catch (err) {
         console.error("取得今日打卡紀錄錯誤：", err);
         document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：讀取失敗";
