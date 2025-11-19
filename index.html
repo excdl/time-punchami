@@ -9,21 +9,70 @@
 
 <style>
 body { font-family: Arial; display:flex; flex-direction:column; align-items:center; margin:20px; }
+
 #dateTime { text-align:center; font-size:22px; margin-bottom:10px; }
+
 #userInfo { text-align:center; font-size:26px; margin-bottom:10px; }
 #statusInfo { text-align:center; font-size:23px; margin-bottom:20px; padding:5px 15px; border-radius:20px; display:inline-block; }
-.buttons-container { display:flex; flex-direction:row; justify-content:space-between; width:100%; max-width:400px; gap:10px; }
-button { flex:1; padding:10px 0; font-size:16px; border-radius:8px; cursor:pointer; font-weight:bold; border:none; transition: all 0.2s ease; }
-button:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
-button:active { transform: translateY(1px); box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
-#btnStart { background: linear-gradient(145deg, #3498db, #2980b9); color:white; box-shadow: 0 4px 8px rgba(52,152,219,0.3); } 
-#btnEnd { background: linear-gradient(145deg, #2ecc71, #27ae60); color:white; box-shadow: 0 4px 8px rgba(46,204,113,0.3); }   
-#btnMakeup { background: linear-gradient(145deg, #f39c12, #d35400); color:white; box-shadow: 0 4px 8px rgba(243,156,18,0.3); } 
+
+.buttons-container {
+    display:flex;
+    flex-direction:row;
+    justify-content:space-between;
+    width:100%;
+    max-width:400px;
+    gap:10px;
+}
+
+/* 按鈕樣式 */
+button { 
+    flex:1; 
+    padding:10px 0; 
+    font-size:16px; 
+    border-radius:8px; 
+    cursor:pointer; 
+    font-weight:bold; 
+    border:none;
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
+button:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+/* 按鈕顏色漸層 */
+#btnStart { 
+    background: linear-gradient(145deg, #3498db, #2980b9); 
+    color:white; 
+    box-shadow: 0 4px 8px rgba(52,152,219,0.3); 
+} 
+#btnEnd { 
+    background: linear-gradient(145deg, #2ecc71, #27ae60); 
+    color:white; 
+    box-shadow: 0 4px 8px rgba(46,204,113,0.3); 
+}   
+#btnMakeup { 
+    background: linear-gradient(145deg, #f39c12, #d35400); 
+    color:white; 
+    box-shadow: 0 4px 8px rgba(243,156,18,0.3); 
+} 
+
 #todayRecords { margin-top:20px; width:90%; border:1px solid #ccc; padding:10px; border-radius:8px; min-height:50px; }
+
+/* 倒數動畫 */
 #countdownWrapper { margin-top:20px; width:120px; height:120px; position:relative; display:none; }
 #circleProgress { fill:none; stroke-width:12; stroke-linecap:round; transform: rotate(-90deg); transform-origin: 50% 50%; }
 #countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; white-space:nowrap; }
+
+/* 補打卡彈窗 */
 .fade-item { opacity:0; transform:translateY(10px); }
+
+/* Swal 樣式 */
 .swal2-popup-custom .swal2-title { font-size: 26px !important; font-weight: bold; }
 #makeupForm label { font-size: 19px !important; font-weight: bold; }
 .swal2-input-custom, .swal2-select-custom { width:100% !important; font-size:16px !important; padding:10px !important; }
@@ -31,12 +80,14 @@ button:active { transform: translateY(1px); box-shadow: 0 2px 4px rgba(0,0,0,0.0
 .swal2-actions { width:100%; display:flex !important; justify-content:space-between !important; }
 .swal2-confirm-custom { background:#2ecc71 !important; color:white !important; }
 .swal2-cancel-custom { background:#3498db !important; color:white !important; }
+
 </style>
 </head>
 
 <body>
 <div id="userInfo">正在獲取使用者資訊...</div>
 <div id="statusInfo"></div>
+
 <div id="dateTime">載入中…</div>
 
 <div class="buttons-container">
@@ -44,11 +95,6 @@ button:active { transform: translateY(1px); box-shadow: 0 2px 4px rgba(0,0,0,0.0
     <button id="btnEnd">下班</button>
     <button id="btnMakeup">補打卡</button>
 </div>
-
-<!-- 主管審批按鈕 -->
-<button id="btnApprove" style="margin-top:20px; padding:12px 20px; font-size:18px; font-weight:bold; border-radius:10px; display:none; width:200px; color:white;">
-    補打卡審批
-</button>
 
 <div id="countdownWrapper">
     <svg width="120" height="120">
@@ -58,24 +104,51 @@ button:active { transform: translateY(1px); box-shadow: 0 2px 4px rgba(0,0,0,0.0
 </div>
 
 <div id="todayRecords">今日打卡紀錄：</div>
-
+<!-- 主管審批按鈕 -->
+<button id="btnApprove"
+        style="
+            margin-top:20px;
+            padding:12px 20px;
+            font-size:18px;
+            font-weight:bold;
+            border-radius:10px;
+            background:linear-gradient(145deg,#8e44ad,#663399);
+            color:white;
+            display:none;
+            width:200px;
+        ">
+    補打卡審批
+</button>
 <script>
+// ===== 設定 =====
 const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwlrRLPoYzValOkpAyzYalNTGXOtasPWai4hpHcb9OvQVyLtOc3_Ks1zjwwwsrHGNxQ/exec";
 const COMPANY_IPS = ["114.34.60.48","27.240.227.0"];
-const MANAGERS = ["U5362e40671c45e4c35629ff19163c414"];
+
+// ===== 主管 USER_ID（請填入你的主管 LINE userId）=====
+const MANAGERS = [
+    "U5362e40671c45e4c35629ff19163c414",
+    "U5362e40671c45e4c35629ff19163c414"
+];
 
 // ===== 日期時間 =====
 function updateDateTime() {
     const now = new Date();
-    document.getElementById("dateTime").textContent = now.toLocaleString("zh-TW", { hour12:false });
+    document.getElementById("dateTime").textContent =
+        now.toLocaleString("zh-TW", { hour12:false });
 }
 setInterval(updateDateTime, 1000);
 updateDateTime();
 
-// ===== IP =====
+// ===== 取得 IP =====
 async function getIP() {
     try { return (await (await fetch("https://api.ipify.org?format=json")).json()).ip; }
     catch { return ""; }
+}
+
+// ===== 顯示主管按鈕 =====
+function showApproveButtonIfManager() {
+    document.getElementById("btnApprove").style.display =
+        MANAGERS.includes(window.userId) ? "block" : "none";
 }
 
 // ===== 修正時間格式 =====
@@ -89,76 +162,109 @@ function fixTimeFormat(t) {
     return t;
 }
 
-// ===== LINE 使用者資訊 =====
+// ===== 取得 LINE 使用者 =====
 async function updateUserInfo() {
     await liff.init({ liffId: "2008504718-nmXP0WRV" });
     if (!liff.isLoggedIn()) return liff.login();
+
     const profile = await liff.getProfile();
     window.userId = profile.userId;
     window.userName = profile.displayName;
+
     document.getElementById("userInfo").textContent = `${window.userName} 您好`;
+
+    showApproveButtonIfManager();
 
     const ip = await getIP();
     const s = document.getElementById("statusInfo");
     s.textContent = COMPANY_IPS.includes(ip) ? "公司網路" : "非公司網路";
     s.style.color = COMPANY_IPS.includes(ip) ? "green" : "red";
-
-    showApproveButtonIfManager();
 }
 
-// ===== 顯示主管按鈕 =====
-async function showApproveButtonIfManager() {
-    if (!MANAGERS.includes(window.userId)) return;
-    const records = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}`).then(r=>r.json()).catch(()=>[]);
-    const pendingExists = records.some(r => r.isMakeup);
-    const btn = document.getElementById("btnApprove");
-    btn.style.display = "block";
-    btn.style.background = pendingExists ? "linear-gradient(145deg,#e67e22,#d35400)" : "linear-gradient(145deg,#2ecc71,#27ae60)";
-}
-
-// ===== 動畫倒數 =====
+// ===== 動畫倒數（修正版）=====
 function startCountdownAnimation() {
     const wrapper = document.getElementById("countdownWrapper");
     const circle = document.getElementById("circleProgress");
+
     wrapper.style.display = "block";
+
     const radius = 50;
     const circ = 2 * Math.PI * radius;
+
     circle.style.strokeDasharray = circ;
     circle.style.strokeDashoffset = circ;
+
     let p = 0;
-    function anim() { p += 0.03; if (p >= 1) return; circle.style.strokeDashoffset = circ * (1 - p); requestAnimationFrame(anim); }
+    function anim() {
+        p += 0.03;
+        if (p >= 1) return;
+        circle.style.strokeDashoffset = circ * (1 - p);
+        requestAnimationFrame(anim);
+    }
     requestAnimationFrame(anim);
 }
 
 // ===== 打卡 =====
 async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
+
     startCountdownAnimation();
+
     const ip = await getIP();
     let data;
+
     try {
         const res = await fetch(API_ENDPOINT, {
             method: "POST",
-            body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
+            body: JSON.stringify({
+                userId: window.userId,
+                displayName: window.userName,
+                status,
+                ip,
+                customDate,
+                customTime,
+                isMakeup
+            })
         });
         data = await res.json();
-    } catch { data = { message:"失敗" }; }
+    } catch {
+        data = { message:"失敗" };
+    }
+
     document.getElementById("countdownWrapper").style.display = "none";
-    Swal.fire(data.message.includes("成功") ? "打卡成功" : "重複打卡");
+
+    if (data.message.includes("成功"))
+        Swal.fire("打卡成功");
+    else
+        Swal.fire("重複打卡");
+
     updateTodayRecords();
-    showApproveButtonIfManager();
 }
 
 // ===== 今日紀錄 =====
 async function updateTodayRecords() {
     if (!window.userId) return;
+
     const today = new Date().toLocaleDateString("zh-TW");
     try {
         const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
         const list = await res.json();
-        if (!list.length) { document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：無"; return; }
+
+        if (!list.length) {
+            document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：無";
+            return;
+        }
+
         document.getElementById("todayRecords").innerHTML =
-            "今日打卡紀錄：<br>" + list.map(r => `${r.status} ${fixTimeFormat(r.time)} ${COMPANY_IPS.includes(r.ip) ? "(成功)" : "(異地)"} ${r.isMakeup ? "(補打卡-待審核)" : ""}`).join("<br>");
-    } catch { document.getElementById("todayRecords").innerHTML = "讀取失敗"; }
+            "今日打卡紀錄：<br>" +
+            list.map(r => {
+                return `${r.status} ${fixTimeFormat(r.time)} ${
+                    COMPANY_IPS.includes(r.ip) ? "(成功)" : "(異地)"
+                } ${r.isMakeup ? "(補打卡-待審核)" : ""}`;
+            }).join("<br>");
+
+    } catch {
+        document.getElementById("todayRecords").innerHTML = "讀取失敗";
+    }
 }
 
 // ===== 補打卡 =====
@@ -180,47 +286,38 @@ document.getElementById("btnMakeup").onclick = async () => {
         showCancelButton: true,
         confirmButtonText: "完成",
         cancelButtonText: "取消",
-        customClass: { popup:'swal2-popup-custom', confirmButton:'swal2-confirm-custom', cancelButton:'swal2-cancel-custom' },
+        customClass: {
+            popup: 'swal2-popup-custom',
+            confirmButton: 'swal2-confirm-custom',
+            cancelButton: 'swal2-cancel-custom'
+        },
         preConfirm: () => {
             const d = document.getElementById("d").value;
             const t = document.getElementById("t").value;
             const s = document.getElementById("s").value;
-            if (!d || !t || !s) { Swal.showValidationMessage("日期、時間、狀態皆為必填"); return false; }
+            if (!d || !t || !s) {
+                Swal.showValidationMessage("日期、時間、狀態皆為必填");
+                return false;
+            }
             return [d.replace(/-/g,'/'), t, s];
         },
-        didOpen: () => { document.querySelectorAll(".fade-item").forEach((el,i)=>{ setTimeout(()=>{ el.style.opacity=1; el.style.transform="translateY(0)"; }, i*120); }); }
+        didOpen: () => {
+            document.querySelectorAll(".fade-item").forEach((el,i)=>{
+                setTimeout(()=>{ el.style.opacity=1; el.style.transform="translateY(0)"; }, i*120);
+            });
+        }
     });
-    if (isConfirmed) performClockIn(value[2], value[0], value[1], true);
+
+    if (isConfirmed)
+        performClockIn(value[2], value[0], value[1], true);
 };
 
-// ===== 上下班 =====
+// ===== 按鈕事件 =====
 document.getElementById("btnStart").onclick = () => performClockIn("上班");
 document.getElementById("btnEnd").onclick = () => performClockIn("下班");
 
-// ===== 補打卡審批 =====
-document.getElementById("btnApprove").onclick = async () => {
-    try {
-        const res = await fetch(`${API_ENDPOINT}?action=getPending&userId=${window.userId}`);
-        const pendingList = await res.json();
-        if (!pendingList.length) return Swal.fire("目前無待審核補打卡");
-        for (let r of pendingList) {
-            const { value, isConfirmed } = await Swal.fire({
-                title: `審核 ${r.displayName} 的補打卡`,
-                html:`日期：${r.customDate}<br>時間：${r.customTime}<br>狀態：${r.status}`,
-                showCancelButton:true,
-                confirmButtonText:"批准",
-                cancelButtonText:"駁回"
-            });
-            const action = isConfirmed ? "approve" : "reject";
-            await fetch(API_ENDPOINT, {
-                method:"POST",
-                body: JSON.stringify({ action, recordId: r.id })
-            });
-        }
-        Swal.fire("審批完成");
-        updateTodayRecords();
-        showApproveButtonIfManager();
-    } catch(e) { Swal.fire("審批失敗"); console.error(e); }
+document.getElementById("btnApprove").onclick = () => {
+    window.location.href = "https://script.google.com/macros/s/AKfycbxaPziOwkI4ZSdM9jclAJNEEfk63B9hvzSc6Vb3occ0zOIgJBV0XYW8vMJm4KAM8HJE/exec";
 };
 
 // ===== 初始化 =====
@@ -229,6 +326,7 @@ window.onload = async () => {
     await updateTodayRecords();
 };
 </script>
+
 </body>
 </html>
 
