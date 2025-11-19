@@ -102,11 +102,7 @@ button:active {
     </svg>
     <div id="countdownText">打卡中...</div>
 </div>
-<!-- 日期查詢區 -->
-<div style="margin-top:20px; display:flex; gap:10px; align-items:center;">
-    <input type="date" id="queryDate" style="padding:8px; font-size:16px; border-radius:6px; border:1px solid #ccc;">
-    <button id="btnQuery" style="padding:8px 12px; font-size:16px; border-radius:6px; background:#3498db; color:white; border:none; cursor:pointer;">查詢</button>
-</div>
+
 <div id="todayRecords">今日打卡紀錄：</div>
 <!-- 主管審批按鈕 -->
 <button id="btnApprove"
@@ -125,7 +121,7 @@ button:active {
 </button>
 <script>
 // ===== 設定 =====
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbyTyiRDeIhnzXju8yGLIFjfwcZaN1vUyYGIxt5643lBJOapVL0hqNasOxM1BqYzA5EH/exec";
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwlrRLPoYzValOkpAyzYalNTGXOtasPWai4hpHcb9OvQVyLtOc3_Ks1zjwwwsrHGNxQ/exec";
 const COMPANY_IPS = ["114.34.60.48","27.240.227.0"];
 
 // ===== 主管 USER_ID（請填入你的主管 LINE userId）=====
@@ -485,45 +481,6 @@ function fixTimeFormat(t) {
     }
     return t;
 }
-// ===== 查詢功能 =====
-async function queryRecordsByDate(dateStr) {
-    if (!window.userId) {
-        await updateUserInfo();
-        if (!window.userId) return;
-    }
-
-    try {
-        const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${dateStr}`);
-        const data = await res.json();
-
-        const container = document.getElementById("todayRecords");
-        if (!data.length) {
-            container.innerHTML = `${dateStr} 打卡紀錄：無`;
-            return;
-        }
-
-        container.innerHTML = `${dateStr} 打卡紀錄：<br>` + data.map(r => {
-            const time = fixTimeFormat(r.time);
-            const ipLabel = COMPANY_IPS.includes(r.ip) ? "(成功)" : "(錯誤-非公司網路異地請忽略)";
-            const makeup = r.isMakeup ? "(補打卡-待審核)" : "";
-            return `${r.status} ${time} ${ipLabel} ${makeup}`;
-        }).join("<br>");
-
-    } catch(err) {
-        console.error(err);
-        document.getElementById("todayRecords").innerHTML = `${dateStr} 打卡紀錄：讀取失敗`;
-    }
-}
-
-// ===== 綁定查詢按鈕 =====
-document.getElementById("btnQuery").onclick = () => {
-    const dateInput = document.getElementById("queryDate").value;
-    if (!dateInput) {
-        Swal.fire({ icon: "warning", title: "請選擇日期" });
-        return;
-    }
-    queryRecordsByDate(dateInput);
-};
 
 // ===== 取得今日紀錄 =====
 async function updateTodayRecords() {
