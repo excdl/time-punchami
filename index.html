@@ -326,22 +326,119 @@ document.getElementById("btnEnd").onclick = () => performClockIn("下班");
 
 document.getElementById("btnMakeup").onclick = async () => {
     const { value } = await Swal.fire({
-        title:"補打卡設定",
+        title: "補打卡設定",
         html: `
-          <input type="date" id="d" class="swal2-input">
-          <input type="time" id="t" class="swal2-input">
-          <select id="s" class="swal2-select">
-            <option>上班</option>
-            <option>下班</option>
-          </select>`,
-        focusConfirm:false,
-        preConfirm:() => [
+          <div id="makeupForm" style="display:flex; flex-direction:column; gap:15px; font-size:16px; text-align:left; margin-top:10px;">
+              <div class="fade-item">
+                <label style="font-weight:bold; color:#555;">日期</label>
+                <input type="date" id="d" class="swal2-input-custom">
+              </div>
+              
+              <div class="fade-item">
+                <label style="font-weight:bold; color:#555;">時間</label>
+                <input type="time" id="t" class="swal2-input-custom">
+              </div>
+              
+              <div class="fade-item">
+                <label style="font-weight:bold; color:#555;">狀態</label>
+                <select id="s" class="swal2-select-custom">
+                    <option>上班</option>
+                    <option>下班</option>
+                </select>
+              </div>
+          </div>`,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: "完成",
+        cancelButtonText: "取消",
+        reverseButtons: true,
+        customClass: {
+            popup: 'swal2-popup-custom',
+            confirmButton: 'swal2-confirm-custom',
+            cancelButton: 'swal2-cancel-custom'
+        },
+        preConfirm: () => [
             document.getElementById("d").value,
             document.getElementById("t").value,
             document.getElementById("s").value
         ],
-        showCancelButton:true
+        didOpen: () => {
+            // 淡入動畫
+            const items = document.querySelectorAll('.fade-item');
+            items.forEach((el, i) => {
+                el.style.opacity = 0;
+                el.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    el.style.transition = 'all 0.4s ease-out';
+                    el.style.opacity = 1;
+                    el.style.transform = 'translateY(0)';
+                }, i * 150); // 每個欄位間隔 150ms
+            });
+        }
     });
+
+    if (value)
+        performClockIn(value[2], value[0], value[1], true);
+};
+
+// ===== SweetAlert2 自訂 CSS =====
+const style = document.createElement('style');
+style.innerHTML = `
+/* 彈窗尺寸 */
+.swal2-popup-custom {
+    width: 380px !important;
+    font-size: 16px !important;
+    border-radius: 12px !important;
+    padding: 25px 20px !important;
+}
+
+/* 輸入欄位樣式 */
+.swal2-input-custom, .swal2-select-custom {
+    height:44px;
+    font-size:18px;
+    padding:6px 12px;
+    border-radius:10px;
+    border:1px solid #ccc;
+    transition: all 0.2s ease;
+}
+.swal2-input-custom:focus, .swal2-select-custom:focus {
+    outline:none;
+    border-color:#f39c12;
+    box-shadow:0 0 6px rgba(243,156,18,0.4);
+}
+
+/* 按鈕樣式 */
+.swal2-confirm-custom, .swal2-cancel-custom {
+    width:130px !important;
+    height:44px !important;
+    font-size:16px !important;
+    border-radius:10px !important;
+    font-weight:bold !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+.swal2-confirm-custom {
+    background: linear-gradient(145deg, #f39c12, #d35400) !important;
+    color: white !important;
+}
+.swal2-cancel-custom {
+    background: #ccc !important;
+    color: #333 !important;
+}
+.swal2-confirm-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(243,156,18,0.4);
+}
+.swal2-cancel-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+.swal2-confirm-custom:active, .swal2-cancel-custom:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+`;
+document.head.appendChild(style);
 
     if (value)
         performClockIn(value[2], value[0], value[1], true);
