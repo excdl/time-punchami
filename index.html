@@ -12,8 +12,8 @@ body { font-family: Arial; display:flex; flex-direction:column; align-items:cent
 
 #dateTime { text-align:center; font-size:22px; margin-bottom:10px; }
 
-#userInfo { text-align:center; font-size:21.6px; margin-bottom:10px; }
-#statusInfo { text-align:center; font-size:19.2px; margin-bottom:20px; padding:5px 15px; border-radius:20px; display:inline-block; }
+#userInfo { text-align:center; font-size:26px; margin-bottom:10px; }
+#statusInfo { text-align:center; font-size:23px; margin-bottom:20px; padding:5px 15px; border-radius:20px; display:inline-block; }
 
 .buttons-container {
     display:flex;
@@ -68,17 +68,20 @@ button:active {
 #countdownWrapper { margin-top:20px; width:120px; height:120px; position:relative; display:none; }
 #circleProgress { fill:none; stroke-width:12; stroke-linecap:round; transform: rotate(-90deg); transform-origin: 50% 50%; }
 #countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; white-space:nowrap; }
+/* 補打卡彈窗內的 input/select 大 100% */
+.swal2-input-custom, .swal2-select-custom {
+    font-size: 32px !important;  /* 原本 16px 的 2 倍 */
+    padding: 12px !important;
+  
+
 </style>
 </head>
 
 <body>
-
-<!-- 新增日期時間顯示 -->
-<div id="dateTime">載入中…</div>
-
 <div id="userInfo">正在獲取使用者資訊...</div>
 <div id="statusInfo"></div>
-
+<!-- 新增日期時間顯示 -->
+<div id="dateTime">載入中…</div>
 <div class="buttons-container">
     <button id="btnStart">上班</button>
     <button id="btnEnd">下班</button>
@@ -96,7 +99,7 @@ button:active {
 
 <script>
 // ===== 設定 =====
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxccGq99OM8aGkSstpFlHD0tc1to9ORcRLdIM2NXuPTCyT1nITLWP1GuxelkfLnXEYC/exec";
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbzEiEJCfJlvww2iMOyLk49L24a7dtk6dDpe_qGZ8D7vHvbEF-axeyGNeXVNCbXjKBQ6/exec";
 const COMPANY_IPS = ["114.34.60.48","27.240.227.0"];
 
 // ===== 顯示目前日期時間 =====
