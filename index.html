@@ -71,49 +71,53 @@ button:active {
 
 /* ===== 補打卡彈窗美化 ===== */
 
-/* 標題文字加大 50% */
+/* ===== 補打卡彈窗美化 (新版設定) ===== */
+
+/* 標題 字體放大 30% */
 .swal2-popup-custom .swal2-title {
-    font-size: 30px !important;
+    font-size: 26px !important; /* 原 20px → 26px */
     font-weight: bold;
 }
 
-/* 標籤文字加大 50% */
+/* 日期 / 時間 / 狀態 標籤文字放大 20% */
 #makeupForm label {
-    font-size: 24px !important;
+    font-size: 19px !important; /* 原本大約 16px → +20% */
     font-weight: bold;
 }
 
-/* 輸入框縮小 50%（原本 16 → 8） */
+/* 輸入框不縮小、不放大（維持預設大小） */
 .swal2-input-custom, .swal2-select-custom {
     width: 100% !important;
-    font-size: 12px !important;
-    padding: 6px !important;
+    font-size: 16px !important;
+    padding: 10px !important;
 }
 
-/* 按鈕放大 30% */
+/* 完成 / 取消按鈕 放大 10% */
 .swal2-confirm-custom, .swal2-cancel-custom {
-    font-size: 20px !important;
-    padding: 10px 28px !important;
+    font-size: 17.6px !important; /* 16px ×1.1 = 17.6 */
+    padding: 8px 20px !important;
 }
 
-/* 取消按鈕置左、完成按鈕置右（靠邊對齊） */
+/* 將按鈕左右排列（完成左 / 取消右）*/
 .swal2-actions {
     width: 100%;
+    display: flex !important;
     justify-content: space-between !important;
 }
 
-/* 取消按鈕紅色、完成按鈕綠色（更清楚） */
-.swal2-cancel-custom {
-    background-color: #e74c3c !important;
-    color: white !important;
-}
+/* 按鈕顏色：完成 = 綠色 */
 .swal2-confirm-custom {
     background-color: #2ecc71 !important;
     color: white !important;
 }
 
+/* 按鈕顏色：取消 = 藍色 */
+.swal2-cancel-custom {
+    background-color: #3498db !important;
+    color: white !important;
+}
 
-  
+
 
 </style>
 </head>
@@ -366,7 +370,6 @@ document.getElementById("btnStart").onclick = () => performClockIn("上班");
 document.getElementById("btnEnd").onclick = () => performClockIn("下班");
 
 // ===== 補打卡彈窗 =====
-// ===== 補打卡彈窗 =====
 document.getElementById("btnMakeup").onclick = async () => {
     const { value, isConfirmed } = await Swal.fire({
         title: "補打卡設定",
@@ -400,8 +403,6 @@ document.getElementById("btnMakeup").onclick = async () => {
 
         confirmButtonText: "完成",
         cancelButtonText: "取消",
-
-        reverseButtons: true,   // ← 按鈕左右位置交換（取消左 / 完成右）
 
         customClass: {
             popup: 'swal2-popup-custom',
