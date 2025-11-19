@@ -10,8 +10,10 @@
 <style>
 body { font-family: Arial; display:flex; flex-direction:column; align-items:center; margin:20px; }
 
-#userInfo { text-align:center; font-size:18px; margin-bottom:10px; }
-#statusInfo { text-align:center; font-size:16px; margin-bottom:20px; padding:5px 15px; border-radius:20px; display:inline-block; }
+#dateTime { text-align:center; font-size:22px; margin-bottom:10px; }
+
+#userInfo { text-align:center; font-size:21.6px; margin-bottom:10px; }
+#statusInfo { text-align:center; font-size:19.2px; margin-bottom:20px; padding:5px 15px; border-radius:20px; display:inline-block; }
 
 .buttons-container {
     display:flex;
@@ -71,6 +73,9 @@ button:active {
 
 <body>
 
+<!-- 新增日期時間顯示 -->
+<div id="dateTime">載入中…</div>
+
 <div id="userInfo">正在獲取使用者資訊...</div>
 <div id="statusInfo"></div>
 
@@ -94,6 +99,20 @@ button:active {
 const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxccGq99OM8aGkSstpFlHD0tc1to9ORcRLdIM2NXuPTCyT1nITLWP1GuxelkfLnXEYC/exec";
 const COMPANY_IPS = ["114.34.60.48","27.240.227.0"];
 
+// ===== 顯示目前日期時間 =====
+function updateDateTime() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const dd = String(now.getDate()).padStart(2,'0');
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mi = String(now.getMinutes()).padStart(2,'0');
+    const ss = String(now.getSeconds()).padStart(2,'0');
+    document.getElementById("dateTime").textContent = `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`;
+}
+setInterval(updateDateTime, 1000);
+updateDateTime();
+
 // ===== 取得 IP =====
 async function getIP() {
     try {
@@ -111,20 +130,11 @@ async function updateUserInfo() {
     await liff.init({ liffId: "2008504718-nmXP0WRV" });
     await liff.ready;
 
-    // 未登入 → login 並 return（避免繼續往下跑造成 undefined）
-    if (!liff.isLoggedIn()) {
-        return liff.login();
-    }
+    if (!liff.isLoggedIn()) return liff.login();
 
-    // 取得使用者資料（避免 null / undefined）
     let profile = null;
-    try {
-        profile = await liff.getProfile();
-    } catch (err) {
-        console.error("getProfile error", err);
-    }
+    try { profile = await liff.getProfile(); } catch (err) { console.error("getProfile error", err); }
 
-    // 如果 profile 還是拿不到 → 不允許打卡
     if (!profile || !profile.userId) {
         document.getElementById("userInfo").textContent = "無法取得您的 LINE 資料，請重新開啟此頁面";
         return;
@@ -135,7 +145,6 @@ async function updateUserInfo() {
 
     document.getElementById("userInfo").textContent = `${profile.displayName} 您好`;
 
-    // 取得 IP 並顯示
     const ip = await getIP();
     const isCompany = COMPANY_IPS.includes(ip);
 
@@ -145,9 +154,9 @@ async function updateUserInfo() {
     statusEl.style.color = isCompany ? "green" : "red";
 }
 
+// ===== 打卡功能 =====
 async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
 
-    // === 第 1 重防護：若 LINE 資料未準備好，阻止打卡 ===
     if (!window.userId || !window.userName) {
         Swal.fire({
             icon: "info",
@@ -156,11 +165,7 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
             timer: 2000,
             showConfirmButton: false
         });
-
-        // 強制重新取一次
         await updateUserInfo();
-
-        // 取完再檢查一次
         if (!window.userId || !window.userName) {
             Swal.fire({
                 icon: "error",
@@ -172,9 +177,6 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         }
     }
 
-    // === 第 2 重防護：避免 userId 尚未準備好 ===
-    console.log("Clock-in user:", window.userId, window.userName);
-
     const ip = await getIP();
     const wrapper = document.getElementById("countdownWrapper");
     const circle = document.getElementById("circleProgress");
@@ -183,17 +185,13 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
     wrapper.style.display = "block";
     text.textContent = isMakeup ? "補打卡中..." : "打卡中...";
 
-    // ===== 動態顏色設定 =====
     let startColor, endColor;
     if (isMakeup) {
-        startColor = {r:243, g:156, b:18};
-        endColor   = {r:243, g:156, b:18};
+        startColor = endColor = {r:243, g:156, b:18};
     } else if (status === "下班") {
-        startColor = {r:46, g:204, b:113};  // 淺綠
-        endColor   = {r:39, g:174, b:96};   // 深綠
+        startColor = {r:46, g:204, b:113};  endColor = {r:39, g:174, b:96};
     } else {
-        startColor = {r:52, g:152, b:219};  // 上班藍
-        endColor   = {r:41, g:128, b:185};
+        startColor = {r:52, g:152, b:219};  endColor = {r:41, g:128, b:185};
     }
 
     const radius = 60;
@@ -227,7 +225,6 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
 
         if(progress < 1) requestAnimationFrame(animate);
     }
-
     requestAnimationFrame(animate);
 
     const startTime = performance.now();
@@ -324,7 +321,7 @@ async function updateTodayRecords() {
 document.getElementById("btnStart").onclick = () => performClockIn("上班");
 document.getElementById("btnEnd").onclick = () => performClockIn("下班");
 
-// 補打卡彈窗
+// ===== 補打卡彈窗 =====
 document.getElementById("btnMakeup").onclick = async () => {
     const { value, isConfirmed } = await Swal.fire({
         title:"補打卡設定",
@@ -352,20 +349,16 @@ document.getElementById("btnMakeup").onclick = async () => {
         confirmButtonText: "完成",
         cancelButtonText: "取消",
         reverseButtons: true,
-        customClass: {
-            popup: 'swal2-popup-custom',
-            confirmButton: 'swal2-confirm-custom',
-            cancelButton: 'swal2-cancel-custom'
-        },
         preConfirm: () => {
-            const date=document.getElementById("d").value;
-            const time=document.getElementById("t").value;
-            const status=document.getElementById("s").value;
+            const date = document.getElementById("d").value;
+            const time = document.getElementById("t").value;
+            const status = document.getElementById("s").value;
             if(!date || !time || !status){
                 Swal.showValidationMessage(`日期、時間、狀態皆為必填`);
                 return false;
             }
-            return [date,time,status];
+            const formattedDate = date.replace(/-/g,'/');
+            return [formattedDate, time, status];
         },
         didOpen: () => {
             const items = document.querySelectorAll('.fade-item');
@@ -381,8 +374,11 @@ document.getElementById("btnMakeup").onclick = async () => {
     if (value && isConfirmed) performClockIn(value[2], value[0], value[1], true);
 };
 
-// 初始化
-window.onload = async () => { await updateUserInfo(); await updateTodayRecords(); };
+// ===== 初始化 =====
+window.onload = async () => { 
+    await updateUserInfo(); 
+    await updateTodayRecords(); 
+};
 </script>
 
 </body>
