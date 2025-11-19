@@ -68,10 +68,12 @@ button:active {
 #countdownWrapper { margin-top:20px; width:120px; height:120px; position:relative; display:none; }
 #circleProgress { fill:none; stroke-width:12; stroke-linecap:round; transform: rotate(-90deg); transform-origin: 50% 50%; }
 #countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; white-space:nowrap; }
-/* 補打卡彈窗內的 input/select 大 100% */
-.swal2-input-custom, .swal2-select-custom {
-    font-size: 32px !important;  /* 原本 16px 的 2 倍 */
-    padding: 12px !important;
+
+    .swal2-confirm-custom, .swal2-cancel-custom {
+    font-size: 20.8px !important; /* 16px → 16*1.3 ≈ 20.8px */
+    padding: 10px 20px !important;
+}
+
   
 
 </style>
@@ -351,6 +353,13 @@ document.getElementById("btnMakeup").onclick = async () => {
         showCancelButton: true,
         confirmButtonText: "完成",
         cancelButtonText: "取消",
+        reverseButtons: true,   // ← 對調按鈕位置
+    customClass: {
+        popup: 'swal2-popup-custom',
+        confirmButton: 'swal2-confirm-custom',
+        cancelButton: 'swal2-cancel-custom'
+    }
+});
         reverseButtons: true,
         preConfirm: () => {
             const date = document.getElementById("d").value;
