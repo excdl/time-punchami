@@ -64,51 +64,22 @@ button:active {
 
 #todayRecords { margin-top:20px; width:90%; border:1px solid #ccc; padding:10px; border-radius:8px; min-height:50px; }
 
+/* 倒數動畫 */
 #countdownWrapper { margin-top:20px; width:120px; height:120px; position:relative; display:none; }
 #circleProgress { fill:none; stroke-width:12; stroke-linecap:round; transform: rotate(-90deg); transform-origin: 50% 50%; }
 #countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; white-space:nowrap; }
 
-/* ===== 補打卡彈窗美化 ===== */
+/* 補打卡彈窗 */
+.fade-item { opacity:0; transform:translateY(10px); }
 
-/* 標題 字體放大 30% */
-.swal2-popup-custom .swal2-title {
-    font-size: 26px !important;
-    font-weight: bold;
-}
-
-/* 日期 / 時間 / 狀態 標籤文字放大 20% */
-#makeupForm label {
-    font-size: 19px !important;
-    font-weight: bold;
-}
-
-/* 輸入框統一風格 */
-.swal2-input-custom, .swal2-select-custom {
-    width: 100% !important;
-    font-size: 16px !important;
-    padding: 10px !important;
-}
-
-.swal2-confirm-custom, .swal2-cancel-custom {
-    font-size: 17.6px !important;
-    padding: 8px 20px !important;
-}
-
-.swal2-actions {
-    width: 100%;
-    display: flex !important;
-    justify-content: space-between !important;
-}
-
-.swal2-confirm-custom {
-    background-color: #2ecc71 !important;
-    color: white !important;
-}
-
-.swal2-cancel-custom {
-    background-color: #3498db !important;
-    color: white !important;
-}
+/* Swal 樣式 */
+.swal2-popup-custom .swal2-title { font-size: 26px !important; font-weight: bold; }
+#makeupForm label { font-size: 19px !important; font-weight: bold; }
+.swal2-input-custom, .swal2-select-custom { width:100% !important; font-size:16px !important; padding:10px !important; }
+.swal2-confirm-custom, .swal2-cancel-custom { font-size:17px !important; padding:8px 20px !important; }
+.swal2-actions { width:100%; display:flex !important; justify-content:space-between !important; }
+.swal2-confirm-custom { background:#2ecc71 !important; color:white !important; }
+.swal2-cancel-custom { background:#3498db !important; color:white !important; }
 
 </style>
 </head>
@@ -125,7 +96,7 @@ button:active {
     <button id="btnMakeup">補打卡</button>
 </div>
 
-<!-- ===== 主管審批按鈕（預設隱藏） ===== -->
+<!-- 主管審批按鈕 -->
 <button id="btnApprove"
         style="
             margin-top:20px;
@@ -155,111 +126,146 @@ button:active {
 const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbzEiEJCfJlvww2iMOyLk49L24a7dtk6dDpe_qGZ8D7vHvbEF-axeyGNeXVNCbXjKBQ6/exec";
 const COMPANY_IPS = ["114.34.60.48","27.240.227.0"];
 
-// ===== 主管 USER_ID 清單（請自行填入） =====
+// ===== 主管 USER_ID（請填入你的主管 LINE userId）=====
 const MANAGERS = [
-    "主管的 LINE USER_ID_1",
-    "主管的 LINE USER_ID_2"
+    "U5362e40671c45e4c35629ff19163c414"
 ];
 
-// ===== 顯示目前日期時間 =====
+// ===== 日期時間 =====
 function updateDateTime() {
     const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth()+1).padStart(2,'0');
-    const dd = String(now.getDate()).padStart(2,'0');
-    const hh = String(now.getHours()).padStart(2,'0');
-    const mi = String(now.getMinutes()).padStart(2,'0');
-    const ss = String(now.getSeconds()).padStart(2,'0');
-    document.getElementById("dateTime").textContent = `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`;
+    document.getElementById("dateTime").textContent =
+        now.toLocaleString("zh-TW", { hour12:false });
 }
 setInterval(updateDateTime, 1000);
+updateDateTime();
 
 // ===== 取得 IP =====
 async function getIP() {
-    try {
-        const res = await fetch("https://api.ipify.org?format=json");
-        const data = await res.json();
-        return data.ip;
-    } catch { return ""; }
+    try { return (await (await fetch("https://api.ipify.org?format=json")).json()).ip; }
+    catch { return ""; }
 }
 
-// ===== 顯示審批按鈕（主管限定） =====
+// ===== 顯示主管按鈕 =====
 function showApproveButtonIfManager() {
-    const btn = document.getElementById("btnApprove");
-    if (MANAGERS.includes(window.userId)) {
-        btn.style.display = "block";
-    } else {
-        btn.style.display = "none";
+    document.getElementById("btnApprove").style.display =
+        MANAGERS.includes(window.userId) ? "block" : "none";
+}
+
+// ===== 修正時間格式 =====
+function fixTimeFormat(t) {
+    if (!t) return "";
+    if (typeof t === "string" && t.includes(":")) return t;
+    if (!isNaN(t)) {
+        const d = new Date((t - 25569) * 86400 * 1000);
+        return d.toLocaleTimeString("zh-TW", { hour12:false });
     }
+    return t;
 }
 
 // ===== 取得 LINE 使用者 =====
 async function updateUserInfo() {
-
-    document.getElementById("userInfo").textContent = "載入中…";
-
     await liff.init({ liffId: "2008504718-nmXP0WRV" });
-    await liff.ready;
-
     if (!liff.isLoggedIn()) return liff.login();
 
-    let profile = null;
-    try { profile = await liff.getProfile(); } catch { }
-
-    if (!profile || !profile.userId) {
-        document.getElementById("userInfo").textContent = "無法取得您的 LINE 資料";
-        return;
-    }
-
+    const profile = await liff.getProfile();
     window.userId = profile.userId;
     window.userName = profile.displayName;
 
-    document.getElementById("userInfo").textContent = `${profile.displayName} 您好`;
+    document.getElementById("userInfo").textContent = `${window.userName} 您好`;
 
-    // 主管判斷
     showApproveButtonIfManager();
 
     const ip = await getIP();
-    const statusEl = document.getElementById("statusInfo");
-    statusEl.textContent = COMPANY_IPS.includes(ip) ? "公司網路" : "非公司網路";
-    statusEl.style.backgroundColor = COMPANY_IPS.includes(ip) ? "#d4f4dd" : "#f8d4d4";
-    statusEl.style.color = COMPANY_IPS.includes(ip) ? "green" : "red";
+    const s = document.getElementById("statusInfo");
+    s.textContent = COMPANY_IPS.includes(ip) ? "公司網路" : "非公司網路";
+    s.style.color = COMPANY_IPS.includes(ip) ? "green" : "red";
 }
 
-// ===== 打卡功能 =====
-async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
-    if (!window.userId || !window.userName) {
-        Swal.fire("尚未取得 LINE 資料");
-        await updateUserInfo();
-        return;
-    }
-
-    const ip = await getIP();
+// ===== 動畫倒數（修正版）=====
+function startCountdownAnimation() {
     const wrapper = document.getElementById("countdownWrapper");
     const circle = document.getElementById("circleProgress");
-    const text = document.getElementById("countdownText");
 
     wrapper.style.display = "block";
-    text.textContent = isMakeup ? "補打卡中..." : "打卡中...";
 
+    const radius = 50;
+    const circ = 2 * Math.PI * radius;
+
+    circle.style.strokeDasharray = circ;
+    circle.style.strokeDashoffset = circ;
+
+    let p = 0;
+    function anim() {
+        p += 0.03;
+        if (p >= 1) return;
+        circle.style.strokeDashoffset = circ * (1 - p);
+        requestAnimationFrame(anim);
+    }
+    requestAnimationFrame(anim);
+}
+
+// ===== 打卡 =====
+async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
+
+    startCountdownAnimation();
+
+    const ip = await getIP();
     let data;
+
     try {
         const res = await fetch(API_ENDPOINT, {
             method: "POST",
-            body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
+            body: JSON.stringify({
+                userId: window.userId,
+                displayName: window.userName,
+                status,
+                ip,
+                customDate,
+                customTime,
+                isMakeup
+            })
         });
         data = await res.json();
-    } catch { data = { message:"失敗" }; }
-
-    wrapper.style.display = "none";
-
-    if(data.message.includes("成功")) {
-        Swal.fire("打卡成功");
-    } else {
-        Swal.fire("重複打卡");
+    } catch {
+        data = { message:"失敗" };
     }
 
+    document.getElementById("countdownWrapper").style.display = "none";
+
+    if (data.message.includes("成功"))
+        Swal.fire("打卡成功");
+    else
+        Swal.fire("重複打卡");
+
     updateTodayRecords();
+}
+
+// ===== 今日紀錄 =====
+async function updateTodayRecords() {
+    if (!window.userId) return;
+
+    const today = new Date().toLocaleDateString("zh-TW");
+    try {
+        const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
+        const list = await res.json();
+
+        if (!list.length) {
+            document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：無";
+            return;
+        }
+
+        document.getElementById("todayRecords").innerHTML =
+            "今日打卡紀錄：<br>" +
+            list.map(r => {
+                return `${r.status} ${fixTimeFormat(r.time)} ${
+                    COMPANY_IPS.includes(r.ip) ? "(成功)" : "(異地)"
+                } ${r.isMakeup ? "(補打卡-待審核)" : ""}`;
+            }).join("<br>");
+
+    } catch {
+        document.getElementById("todayRecords").innerHTML = "讀取失敗";
+    }
 }
 
 // ===== 補打卡 =====
@@ -267,17 +273,15 @@ document.getElementById("btnMakeup").onclick = async () => {
     const { value, isConfirmed } = await Swal.fire({
         title: "補打卡設定",
         html: `
-          <div id="makeupForm" style="display:flex; flex-direction:column; gap:20px; text-align:left;">
-            <label>日期</label>
-            <input type="date" id="d" class="swal2-input-custom">
-            <label>時間</label>
-            <input type="time" id="t" class="swal2-input-custom" step="1">
-            <label>狀態</label>
-            <select id="s" class="swal2-select-custom">
+          <div id="makeupForm" style="display:flex; flex-direction:column; gap:20px;">
+            <div class="fade-item"><label>日期</label><input type="date" id="d" class="swal2-input-custom"></div>
+            <div class="fade-item"><label>時間</label><input type="time" id="t" class="swal2-input-custom" step="1"></div>
+            <div class="fade-item"><label>狀態</label>
+              <select id="s" class="swal2-select-custom">
                 <option value="">請選擇</option>
                 <option value="上班">上班</option>
                 <option value="下班">下班</option>
-            </select>
+              </select></div>
           </div>
         `,
         showCancelButton: true,
@@ -297,57 +301,33 @@ document.getElementById("btnMakeup").onclick = async () => {
                 return false;
             }
             return [d.replace(/-/g,'/'), t, s];
+        },
+        didOpen: () => {
+            document.querySelectorAll(".fade-item").forEach((el,i)=>{
+                setTimeout(()=>{ el.style.opacity=1; el.style.transform="translateY(0)"; }, i*120);
+            });
         }
     });
 
-    if (isConfirmed) {
+    if (isConfirmed)
         performClockIn(value[2], value[0], value[1], true);
-    }
 };
-
-// ===== 今日紀錄 =====
-async function updateTodayRecords() {
-    if (!window.userId) return;
-    const today = new Date().toLocaleDateString("zh-TW");
-
-    try {
-        const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
-        const list = await res.json();
-
-        const box = document.getElementById("todayRecords");
-        if (!list.length) {
-            box.innerHTML = "今日打卡紀錄：無";
-            return;
-        }
-
-        box.innerHTML = "今日打卡紀錄：<br>" + list.map(r => {
-            const ok = COMPANY_IPS.includes(r.ip) ? "(成功)" : "(異地)";
-            const mk = r.isMakeup ? "(補打卡-待審核)" : "";
-            return `${r.status} ${r.time} ${ok} ${mk}`;
-        }).join("<br>");
-
-    } catch {
-        document.getElementById("todayRecords").innerHTML = "讀取失敗";
-    }
-}
 
 // ===== 按鈕事件 =====
 document.getElementById("btnStart").onclick = () => performClockIn("上班");
 document.getElementById("btnEnd").onclick = () => performClockIn("下班");
 
-// ===== 審批按鈕（主管限定） =====
 document.getElementById("btnApprove").onclick = () => {
     window.location.href = "https://script.google.com/macros/s/AKfycbxaPziOwkI4ZSdM9jclAJNEEfk63B9hvzSc6Vb3occ0zOIgJBV0XYW8vMJm4KAM8HJE/exec";
 };
 
 // ===== 初始化 =====
-window.onload = async () => { 
-    await updateUserInfo(); 
-    await updateTodayRecords(); 
+window.onload = async () => {
+    await updateUserInfo();
+    await updateTodayRecords();
 };
 </script>
 
 </body>
 </html>
-
 
