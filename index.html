@@ -329,19 +329,19 @@ document.getElementById("btnEnd").onclick = () => performClockIn("下班");
 // ===== 補打卡彈窗 =====
 document.getElementById("btnMakeup").onclick = async () => {
     const { value, isConfirmed } = await Swal.fire({
-        title:"補打卡設定",
+        title: "補打卡設定",
         html: `
-          <div id="makeupForm" style="display:flex; flex-direction:column; gap:15px; font-size:16px; text-align:left; margin-top:10px;">
+          <div id="makeupForm" style="display:flex; flex-direction:column; gap:15px; text-align:left; margin-top:10px;">
               <div class="fade-item">
-                <label style="font-weight:bold; color:#555;">日期</label>
+                <label>日期</label>
                 <input type="date" id="d" class="swal2-input-custom">
               </div>
               <div class="fade-item">
-                <label style="font-weight:bold; color:#555;">時間</label>
+                <label>時間</label>
                 <input type="time" id="t" class="swal2-input-custom" step="1">
               </div>
               <div class="fade-item">
-                <label style="font-weight:bold; color:#555;">狀態</label>
+                <label>狀態</label>
                 <select id="s" class="swal2-select-custom">
                     <option value="">請選擇</option>
                     <option value="上班">上班</option>
@@ -349,42 +349,51 @@ document.getElementById("btnMakeup").onclick = async () => {
                 </select>
               </div>
           </div>`,
+
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: "完成",
         cancelButtonText: "取消",
-        reverseButtons: true,   // ← 對調按鈕位置
-    customClass: {
-        popup: 'swal2-popup-custom',
-        confirmButton: 'swal2-confirm-custom',
-        cancelButton: 'swal2-cancel-custom'
-    }
-});
-        reverseButtons: true,
+
+        reverseButtons: true,   // ← 對調按鈕位置（取消左、完成右）
+
+        customClass: {
+            popup: 'swal2-popup-custom',
+            confirmButton: 'swal2-confirm-custom',
+            cancelButton: 'swal2-cancel-custom'
+        },
+
+        // 放在 Swal.fire 物件裡才正確
         preConfirm: () => {
             const date = document.getElementById("d").value;
             const time = document.getElementById("t").value;
             const status = document.getElementById("s").value;
-            if(!date || !time || !status){
+
+            if (!date || !time || !status) {
                 Swal.showValidationMessage(`日期、時間、狀態皆為必填`);
                 return false;
             }
-            const formattedDate = date.replace(/-/g,'/');
+
+            const formattedDate = date.replace(/-/g, '/'); // 日期格式 YYYY/MM/DD
             return [formattedDate, time, status];
         },
+
         didOpen: () => {
             const items = document.querySelectorAll('.fade-item');
-            items.forEach((el,i)=>{
-                setTimeout(()=>{
-                    el.style.transition='all 0.4s ease-out';
-                    el.style.opacity=1;
-                    el.style.transform='translateY(0)';
-                }, i*150);
+            items.forEach((el, i) => {
+                setTimeout(() => {
+                    el.style.transition = 'all 0.4s ease-out';
+                    el.style.opacity = 1;
+                    el.style.transform = 'translateY(0)';
+                }, i * 150);
             });
         }
     });
-    if (value && isConfirmed) performClockIn(value[2], value[0], value[1], true);
+
+    if (value && isConfirmed) 
+        performClockIn(value[2], value[0], value[1], true);
 };
+
 
 // ===== 初始化 =====
 window.onload = async () => { 
