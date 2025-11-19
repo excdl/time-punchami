@@ -69,10 +69,49 @@ button:active {
 #circleProgress { fill:none; stroke-width:12; stroke-linecap:round; transform: rotate(-90deg); transform-origin: 50% 50%; }
 #countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; white-space:nowrap; }
 
-    .swal2-confirm-custom, .swal2-cancel-custom {
-    font-size: 20.8px !important; /* 16px → 16*1.3 ≈ 20.8px */
-    padding: 10px 20px !important;
+/* ===== 補打卡彈窗美化 ===== */
+
+/* 標題文字加大 50% */
+.swal2-popup-custom .swal2-title {
+    font-size: 30px !important;
+    font-weight: bold;
 }
+
+/* 標籤文字加大 50% */
+#makeupForm label {
+    font-size: 24px !important;
+    font-weight: bold;
+}
+
+/* 輸入框縮小 50%（原本 16 → 8） */
+.swal2-input-custom, .swal2-select-custom {
+    width: 100% !important;
+    font-size: 12px !important;
+    padding: 6px !important;
+}
+
+/* 按鈕放大 30% */
+.swal2-confirm-custom, .swal2-cancel-custom {
+    font-size: 20px !important;
+    padding: 10px 28px !important;
+}
+
+/* 取消按鈕置左、完成按鈕置右（靠邊對齊） */
+.swal2-actions {
+    width: 100%;
+    justify-content: space-between !important;
+}
+
+/* 取消按鈕紅色、完成按鈕綠色（更清楚） */
+.swal2-cancel-custom {
+    background-color: #e74c3c !important;
+    color: white !important;
+}
+.swal2-confirm-custom {
+    background-color: #2ecc71 !important;
+    color: white !important;
+}
+
 
   
 
@@ -327,19 +366,24 @@ document.getElementById("btnStart").onclick = () => performClockIn("上班");
 document.getElementById("btnEnd").onclick = () => performClockIn("下班");
 
 // ===== 補打卡彈窗 =====
+// ===== 補打卡彈窗 =====
 document.getElementById("btnMakeup").onclick = async () => {
     const { value, isConfirmed } = await Swal.fire({
         title: "補打卡設定",
         html: `
-          <div id="makeupForm" style="display:flex; flex-direction:column; gap:15px; text-align:left; margin-top:10px;">
+          <div id="makeupForm"
+               style="display:flex; flex-direction:column; gap:20px; text-align:left; margin-top:10px;">
+              
               <div class="fade-item">
                 <label>日期</label>
                 <input type="date" id="d" class="swal2-input-custom">
               </div>
+
               <div class="fade-item">
                 <label>時間</label>
                 <input type="time" id="t" class="swal2-input-custom" step="1">
               </div>
+
               <div class="fade-item">
                 <label>狀態</label>
                 <select id="s" class="swal2-select-custom">
@@ -348,14 +392,16 @@ document.getElementById("btnMakeup").onclick = async () => {
                     <option value="下班">下班</option>
                 </select>
               </div>
-          </div>`,
+          </div>
+        `,
 
         focusConfirm: false,
         showCancelButton: true,
+
         confirmButtonText: "完成",
         cancelButtonText: "取消",
 
-        reverseButtons: true,   // ← 對調按鈕位置（取消左、完成右）
+        reverseButtons: true,   // ← 按鈕左右位置交換（取消左 / 完成右）
 
         customClass: {
             popup: 'swal2-popup-custom',
@@ -363,7 +409,7 @@ document.getElementById("btnMakeup").onclick = async () => {
             cancelButton: 'swal2-cancel-custom'
         },
 
-        // 放在 Swal.fire 物件裡才正確
+        /* ===== 驗證區 ===== */
         preConfirm: () => {
             const date = document.getElementById("d").value;
             const time = document.getElementById("t").value;
@@ -374,10 +420,12 @@ document.getElementById("btnMakeup").onclick = async () => {
                 return false;
             }
 
-            const formattedDate = date.replace(/-/g, '/'); // 日期格式 YYYY/MM/DD
+            // 改為 YYYY/MM/DD
+            const formattedDate = date.replace(/-/g, '/');
             return [formattedDate, time, status];
         },
 
+        /* ===== 開頭動畫 ===== */
         didOpen: () => {
             const items = document.querySelectorAll('.fade-item');
             items.forEach((el, i) => {
@@ -390,8 +438,9 @@ document.getElementById("btnMakeup").onclick = async () => {
         }
     });
 
-    if (value && isConfirmed) 
+    if (value && isConfirmed) {
         performClockIn(value[2], value[0], value[1], true);
+    }
 };
 
 
