@@ -60,12 +60,13 @@ body {
 
 .buttons-container button { 
     flex:1; 
-    padding:12px 0; /* 高度保持原樣 */
-    font-size:32px;  /* 文字加大，但按鈕大小不變 */
+    padding:10px 0; /* 高度隨文字自動調整 */
+    font-size:25px;  /* 文字縮小20% */
     border-radius:8px; 
     cursor:pointer; 
     font-weight:bold; 
     border:none;
+    white-space:nowrap; /* 防止文字換行 */
     transition: all 0.2s ease;
 }
 .buttons-container button:hover {
@@ -108,15 +109,17 @@ body {
     display:flex; 
     flex-direction:column; 
     gap:10px;
+    align-items:flex-start;
 }
 #querySection .queryRow {
     display:flex; 
     gap:10px;
+    width:100%;
 }
 #querySection input[type="date"] {
     flex:1; 
     padding:8px 10px; 
-    font-size:14px; /* 文字略大 */
+    font-size:14px; 
     border-radius:6px; 
     border:1px solid #ccc;
     transition: all 0.2s ease;
@@ -128,7 +131,7 @@ body {
 }
 #querySection button {
     flex:0 0 80px; 
-    font-size:14px; /* 文字略大 */
+    font-size:14px; 
     font-weight:bold; 
     cursor:pointer;
     border:none; 
@@ -151,6 +154,7 @@ body {
     min-height:50px; 
     font-size:16px; 
     background: #fafafa;
+    width:100%; /* 與查詢欄對齊 */
 }
 
 /* 主管審批按鈕 */
