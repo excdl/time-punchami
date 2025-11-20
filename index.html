@@ -102,12 +102,14 @@ button:active {
     </svg>
     <div id="countdownText">打卡中...</div>
 </div>
-<div>
+<div style="margin-bottom:10px;">
     <input type="date" id="queryDate">
-    <button onclick="searchDateRecords()">查詢</button>
-</div>
 
-<div id="todayRecords"></div>
+    <button onclick="searchDateRecords()">查詢</button>
+
+    <!-- 新增清除按鈕 -->
+    <button onclick="clearSearch()">清除查詢</button>
+</div>
 
 <div id="todayRecords">今日打卡紀錄：</div>
 <!-- 主管審批按鈕 -->
@@ -486,6 +488,10 @@ function fixTimeFormat(t) {
         return d.toLocaleTimeString("zh-TW", { hour12:false });
     }
     return t;
+}
+function clearSearch() {
+    document.getElementById("queryDate").value = "";
+    updateTodayRecords();  // 回到今日紀錄
 }
 
 // ===== 取得今日紀錄 =====
