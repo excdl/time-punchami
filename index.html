@@ -9,7 +9,7 @@
 
 <style>
 body { 
-    font-family: Arial; 
+    font-family: Arial, "Microsoft JhengHei", sans-serif;
     display:flex; 
     flex-direction:column; 
     align-items:center; 
@@ -40,7 +40,7 @@ body {
 }
 
 /* ======================
-   打卡按鈕區美化
+   打卡按鈕區
 ====================== */
 .buttons-container {
     display:flex;
@@ -48,11 +48,10 @@ body {
     justify-content:center;
     width:100%;
     max-width:420px;
-    gap:14px; /* 按鈕不會貼在一起 */
+    gap:14px;
     margin-bottom:20px;
 }
 
-/* 按鈕樣式 */
 button { 
     flex:1; 
     padding:12px 0; 
@@ -63,6 +62,10 @@ button {
     border:none;
     transition: all 0.2s ease;
     color:white;
+
+    white-space: nowrap; /* 不換行 */
+    text-align:center;
+    overflow:hidden;
 }
 
 button:hover {
@@ -73,7 +76,7 @@ button:active {
     transform: translateY(1px);
 }
 
-/* 按鈕顏色漸層 */
+/* 按鈕漸層顏色 */
 #btnStart { background: linear-gradient(145deg, #3498db, #2980b9); }
 #btnEnd { background: linear-gradient(145deg, #2ecc71, #27ae60); }   
 #btnMakeup { background: linear-gradient(145deg, #f39c12, #d35400); } 
@@ -83,11 +86,12 @@ button:active {
 ====================== */
 .search-container {
     margin-top:10px;
-    margin-bottom:10px; /* 更貼近紀錄 */
+    margin-bottom:10px;
     display:flex;
-    justify-content:center;
+    justify-content:flex-start; /* 左對齊 */
     align-items:center;
     gap:10px;
+    flex-wrap: nowrap;  /* 桌面不換行 */
 }
 
 #queryDate {
@@ -105,6 +109,8 @@ button:active {
     font-size:15px;
     color:white;
     border-radius:8px;
+    white-space: nowrap;
+    text-align:center;
 }
 
 /* ======================
@@ -184,6 +190,8 @@ button:active {
     }
     .search-container {
         flex-direction:column;
+        flex-wrap: wrap;
+        align-items:stretch;
     }
     .search-container button {
         width:100%;
@@ -193,7 +201,6 @@ button:active {
     }
 }
 </style>
-</head>
 
 <body>
 
@@ -241,6 +248,7 @@ button:active {
         ">
     補打卡審批
 </button>
+
 
 <script>
 // ===== 設定 =====
