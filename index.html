@@ -43,7 +43,7 @@ button {
     font-weight:bold; 
     border:none;
     transition: all 0.2s ease;
-    white-space: nowrap; /* 避免文字換行 */
+    white-space: nowrap;
     text-align:center;
 }
 
@@ -58,8 +58,8 @@ button:active {
 
 /* 上班/下班/補打卡按鈕字體放大50%，置中 */
 #btnStart, #btnEnd, #btnMakeup {
-    padding:18px 0; /* 原本 12px -> 50% 增加 */
-    font-size:24px; /* 原 16px -> 24px */
+    padding:18px 0; 
+    font-size:24px;
 }
 
 /* 按鈕漸層 */
@@ -73,49 +73,52 @@ button:active {
     flex-wrap:nowrap; 
     justify-content:center; 
     gap:10px; 
-    margin-bottom:20px;
+    margin-bottom:10px; /* 縮小50% */
     align-items:center;
 }
 
+/* 查詢框與按鈕高度統一 */
 .search-input {
-    padding: 10px 15px;   /* 原 7px -> 增加50% */
-    font-size:16px;       /* 原 11px -> 增加50% */
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    outline: none;
-    transition: all 0.2s ease;
-    min-width: 200px;
+    padding:10px 15px; 
+    font-size:16px;
+    border:1px solid #ccc;
+    border-radius:8px;
+    outline:none;
+    min-width:200px;
+    height:42px; /* 與按鈕統一 */
     text-align:center;
 }
 
 .search-input:focus {
-    border-color: #3498db;
-    box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
+    border-color:#3498db;
+    box-shadow:0 0 8px rgba(52,152,219,0.3);
 }
 
 .search-btn {
-    padding: 10px 15px;   /* 高增加50% */
-    font-size:16px;       /* 文字放大 */
-    font-weight: bold;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: white;
-    background: #7f8c8d; /* 中灰色 */
+    padding:10px 15px;
+    font-size:16px;
+    font-weight:bold;
+    border-radius:8px;
+    border:none;
+    cursor:pointer;
+    transition:all 0.2s ease;
+    color:white;
+    background:#7f8c8d; /* 中灰色 */
     white-space: nowrap;
+    height:42px; /* 與輸入框統一 */
     text-align:center;
 }
 
 /* 今日紀錄框 */
 #todayRecords { 
-    margin-top:10px; 
+    margin-top:10px; /* 縮小50% */
     width:90%; 
     border:1px solid #ccc; 
     padding:15px; 
     border-radius:8px; 
     min-height:50px; 
     background:white;
+    text-align:left; /* 向左對齊 */
 }
 
 /* 倒數動畫 */
