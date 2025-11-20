@@ -102,6 +102,12 @@ button:active {
     </svg>
     <div id="countdownText">打卡中...</div>
 </div>
+<div>
+    <input type="date" id="queryDate">
+    <button onclick="searchDateRecords()">查詢</button>
+</div>
+
+<div id="todayRecords"></div>
 
 <div id="todayRecords">今日打卡紀錄：</div>
 <!-- 主管審批按鈕 -->
@@ -121,7 +127,7 @@ button:active {
 </button>
 <script>
 // ===== 設定 =====
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwlrRLPoYzValOkpAyzYalNTGXOtasPWai4hpHcb9OvQVyLtOc3_Ks1zjwwwsrHGNxQ/exec";
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbzLHC5tpiYwBIydonwOiZ1K4F2nB-m9gmFqnhMaN6HBQxqQgVq6mIrh_8yo-2DYdswS/exec";
 const COMPANY_IPS = ["114.34.60.48","27.240.227.0"];
 
 // ===== 主管 USER_ID（請填入你的主管 LINE userId）=====
@@ -507,6 +513,43 @@ async function updateTodayRecords() {
     } catch(err) {
         console.error(err);
         document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：讀取失敗";
+    }
+}
+// ===== 查詢指定日期 =====
+async function searchDateRecords() {
+    const dateInput = document.getElementById("queryDate").value;
+
+    if (!dateInput) {
+        // 沒有選日期 → 顯示今日紀錄
+        updateTodayRecords();
+        return;
+    }
+
+    // 轉成後端需要的 yyyy/MM/dd
+    const parts = dateInput.split("-");
+    const dateStr = `${parts[0]}/${parts[1]}/${parts[2]}`;
+
+    try {
+        const res = await fetch(`${API_ENDPOINT}?action=getDate&userId=${window.userId}&date=${dateStr}`);
+        const data = await res.json();
+
+        const container = document.getElementById("todayRecords");
+
+        if (!data.length) {
+            container.innerHTML = `${dateStr}：無紀錄`;
+            return;
+        }
+
+        container.innerHTML = `${dateStr} 打卡紀錄：<br>` + data.map(r => {
+            const time = fixTimeFormat(r.time);
+            const ipLabel = COMPANY_IPS.includes(r.ip) ? "(成功)" : "(錯誤-非公司網路異地請忽略)";
+            const makeup = r.isMakeup ? "(補打卡-待審核)" : "";
+            return `${r.status} ${time} ${ipLabel} ${makeup}`;
+        }).join("<br>");
+
+    } catch (err) {
+        console.error(err);
+        document.getElementById("todayRecords").innerHTML = `${dateStr} 查詢失敗`;
     }
 }
 
