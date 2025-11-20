@@ -15,12 +15,13 @@ body {
     margin:20px; 
     background:#f5f5f5;
     color:#333;
+    text-align:center;
 }
 
-#dateTime { text-align:center; font-size:22px; margin-bottom:10px; }
-#userInfo { text-align:center; font-size:26px; margin-bottom:10px; }
+#dateTime { font-size:22px; margin-bottom:10px; }
+#userInfo { font-size:26px; margin-bottom:10px; }
 #statusInfo { 
-    text-align:center; font-size:23px; margin-bottom:20px; 
+    font-size:23px; margin-bottom:20px; 
     padding:5px 15px; border-radius:20px; display:inline-block; 
 }
 
@@ -37,14 +38,13 @@ body {
 
 button { 
     flex:1; 
-    padding:12px 0; 
-    font-size:16px; 
     border-radius:8px; 
     cursor:pointer; 
     font-weight:bold; 
     border:none;
     transition: all 0.2s ease;
     white-space: nowrap; /* 避免文字換行 */
+    text-align:center;
 }
 
 button:hover {
@@ -54,6 +54,12 @@ button:hover {
 button:active {
     transform: translateY(1px);
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+/* 上班/下班/補打卡按鈕字體放大50%，置中 */
+#btnStart, #btnEnd, #btnMakeup {
+    padding:18px 0; /* 原本 12px -> 50% 增加 */
+    font-size:24px; /* 原 16px -> 24px */
 }
 
 /* 按鈕漸層 */
@@ -72,13 +78,14 @@ button:active {
 }
 
 .search-input {
-    padding: 7px 10px;   /* 縮小 30% */
-    font-size: 11px;     /* 縮小 30% */
+    padding: 10px 15px;   /* 原 7px -> 增加50% */
+    font-size:16px;       /* 原 11px -> 增加50% */
     border: 1px solid #ccc;
     border-radius: 8px;
     outline: none;
     transition: all 0.2s ease;
-    min-width: 180px;
+    min-width: 200px;
+    text-align:center;
 }
 
 .search-input:focus {
@@ -87,20 +94,17 @@ button:active {
 }
 
 .search-btn {
-    padding: 7px 14px; /* 縮小 30% */
-    font-size: 11px;   /* 縮小 30% */
+    padding: 10px 15px;   /* 高增加50% */
+    font-size:16px;       /* 文字放大 */
     font-weight: bold;
     border-radius: 8px;
     border: none;
     cursor: pointer;
     transition: all 0.2s ease;
     color: white;
-    background: linear-gradient(145deg, #3498db, #2980b9);
-    white-space: nowrap; /* 避免換行 */
-}
-
-.clear-btn {
-    background: linear-gradient(145deg, #e74c3c, #c0392b);
+    background: #7f8c8d; /* 中灰色 */
+    white-space: nowrap;
+    text-align:center;
 }
 
 /* 今日紀錄框 */
@@ -178,7 +182,7 @@ button:active {
 <div class="search-container">
     <input type="date" id="queryDate" class="search-input">
     <button class="search-btn" onclick="searchDateRecords()">查詢</button>
-    <button class="search-btn clear-btn" onclick="clearSearch()">返回今日紀錄</button>
+    <button class="search-btn" onclick="clearSearch()">返回今日紀錄</button>
 </div>
 
 <div id="todayRecords">今日打卡紀錄：</div>
