@@ -60,8 +60,8 @@ body {
 
 .buttons-container button { 
     flex:1; 
-    padding:10px 0; 
-    font-size:16px; 
+    padding:12px 0; /* 放大按鈕高度 */
+    font-size:24px;  /* 放大文字50% */
     border-radius:8px; 
     cursor:pointer; 
     font-weight:bold; 
@@ -115,8 +115,8 @@ body {
 }
 #querySection input[type="date"] {
     flex:1; 
-    padding:8px 10px; 
-    font-size:16px; 
+    padding:6px 8px; 
+    font-size:11px; /* 縮小30% */
     border-radius:6px; 
     border:1px solid #ccc;
     transition: all 0.2s ease;
@@ -127,7 +127,8 @@ body {
     outline: none;
 }
 #querySection button {
-    flex:0 0 80px;
+    flex:0 0 70px; 
+    font-size:11px; /* 縮小30% */
     font-weight:bold; 
     cursor:pointer;
     border:none; 
@@ -141,6 +142,7 @@ body {
 }
 #btnQuery { background:#3498db; }
 #btnClear { background:#e74c3c; }
+
 #todayRecords {
     border:1px solid #ccc; 
     border-radius:8px; 
