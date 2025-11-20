@@ -6,173 +6,125 @@
 <title>奇可智能打卡系統</title>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
 <style>
 body { 
-    font-family: Arial, "Microsoft JhengHei", sans-serif;
+    font-family: Arial, sans-serif; 
     display:flex; 
     flex-direction:column; 
     align-items:center; 
     margin:20px; 
-    background:#f4f7fb;
+    background:#f5f5f5;
+    color:#333;
 }
 
-/* ===== 時間、使用者區 ===== */
-#dateTime { 
-    text-align:center; 
-    font-size:22px; 
-    margin-bottom:10px; 
-}
-
-#userInfo { 
-    text-align:center; 
-    font-size:26px; 
-    margin-bottom:10px; 
-}
-
+/* 使用者資訊與狀態 */
+#dateTime { text-align:center; font-size:22px; margin-bottom:10px; }
+#userInfo { text-align:center; font-size:26px; margin-bottom:10px; }
 #statusInfo { 
-    text-align:center; 
-    font-size:23px; 
-    margin-bottom:20px; 
-    padding:5px 15px; 
-    border-radius:20px; 
-    display:inline-block; 
+    text-align:center; font-size:23px; margin-bottom:20px; 
+    padding:5px 15px; border-radius:20px; display:inline-block; 
 }
 
-/* ======================
-   打卡按鈕區
-====================== */
+/* 上班/下班/補打卡按鈕 */
 .buttons-container {
     display:flex;
-    justify-content:center;
+    flex-direction:row;
+    justify-content:space-between;
     width:100%;
-    max-width:420px;
-    gap:14px;
+    max-width:400px;
+    gap:10px;
     margin-bottom:20px;
 }
 
-.buttons-container .main-btn { 
+button { 
     flex:1; 
     padding:12px 0; 
-    font-size:17px; 
-    border-radius:10px; 
+    font-size:16px; 
+    border-radius:8px; 
     cursor:pointer; 
     font-weight:bold; 
     border:none;
     transition: all 0.2s ease;
-    color:white;
-    white-space: nowrap;
-    text-align:center;
-    overflow:hidden;
 }
 
-.buttons-container .main-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.12);
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
 }
-.buttons-container .main-btn:active {
+button:active {
     transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
-/* 按鈕漸層顏色 */
-#btnStart { background: linear-gradient(145deg, #3498db, #2980b9); }
-#btnEnd { background: linear-gradient(145deg, #2ecc71, #27ae60); }   
-#btnMakeup { background: linear-gradient(145deg, #f39c12, #d35400); } 
+/* 按鈕顏色漸層 */
+#btnStart { 
+    background: linear-gradient(145deg, #3498db, #2980b9); 
+    color:white; 
+    box-shadow: 0 4px 8px rgba(52,152,219,0.3); 
+} 
+#btnEnd { 
+    background: linear-gradient(145deg, #2ecc71, #27ae60); 
+    color:white; 
+    box-shadow: 0 4px 8px rgba(46,204,113,0.3); 
+}   
+#btnMakeup { 
+    background: linear-gradient(145deg, #f39c12, #d35400); 
+    color:white; 
+    box-shadow: 0 4px 8px rgba(243,156,18,0.3); 
+} 
 
-/* ======================
-   查詢區塊
-====================== */
-.search-wrapper {
-    display:flex;
-    flex-direction:column;
-    align-items:flex-start; /* 左對齊 */
-    width:90%;
-    max-width:420px;
-    margin-bottom:20px;
-    gap:8px;
-}
-
+/* 查詢區 */
 .search-container {
-    display:flex;
-    gap:10px;
-    flex-wrap: nowrap;
+    display:flex; 
+    flex-wrap:wrap; 
+    justify-content:center; 
+    gap:10px; 
+    margin-bottom:20px;
 }
 
-#queryDate {
-    width:180px;
-    padding:8px;
-    font-size:16px;
-    border-radius:6px;
-    border:1px solid #aaa;
-    background:white;
+.search-input {
+    padding: 10px 15px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    outline: none;
+    transition: all 0.2s ease;
+    min-width: 180px;
 }
 
-.search-container button {
-    background: linear-gradient(145deg, #607D8B, #546E7A);
-    padding: 8px 14px;
-    font-size:15px;
-    color:white;
-    border-radius:8px;
-    white-space: nowrap;
-    text-align:center;
+.search-input:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
 }
 
-/* 補打卡按鈕放查詢區下方 */
-#btnMakeupSearch {
-    padding:10px 16px;
-    font-size:16px;
-    font-weight:bold;
-    border-radius:8px;
-    color:white;
-    border:none;
-    background: linear-gradient(145deg, #f39c12, #d35400);
-    cursor:pointer;
+.search-btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: white;
+    background: linear-gradient(145deg, #3498db, #2980b9);
 }
 
-/* ======================
-   今日紀錄區（卡片化）
-====================== */
+.clear-btn {
+    background: linear-gradient(145deg, #e74c3c, #c0392b);
+}
+
+/* 今日紀錄框 */
 #todayRecords { 
     margin-top:10px; 
     width:90%; 
-    max-width:420px;
-    border:1px solid #ddd; 
+    border:1px solid #ccc; 
     padding:15px; 
-    border-radius:10px; 
+    border-radius:8px; 
     min-height:50px; 
     background:white;
-    box-shadow:0 3px 10px rgba(0,0,0,0.1);
-    font-size:17px;
 }
 
-#todayRecords table {
-    width:100%;
-    border-collapse:collapse;
-    margin-top:10px;
-}
-
-#todayRecords th {
-    background:#3498db;
-    color:white;
-    padding:10px;
-    border:1px solid #ccc;
-    font-size:16px;
-}
-
-#todayRecords td {
-    padding:8px;
-    border:1px solid #ddd;
-    font-size:15px;
-    text-align:center;
-}
-
-#todayRecords tr:nth-child(even) {
-    background:#f8fbff;
-}
-
-/* ======================
-   倒數動畫（維持原樣）
-====================== */
+/* 倒數動畫 */
 #countdownWrapper { 
     margin-top:20px; 
     width:120px; 
@@ -180,43 +132,47 @@ body {
     position:relative; 
     display:none; 
 }
-#circleProgress { fill:none; stroke-width:12; stroke-linecap:round; transform: rotate(-90deg); transform-origin: 50% 50%; }
-#countdownText { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:bold; }
+#circleProgress { 
+    fill:none; 
+    stroke-width:12; 
+    stroke-linecap:round; 
+    transform: rotate(-90deg); 
+    transform-origin: 50% 50%; 
+}
+#countdownText { 
+    position:absolute; 
+    top:50%; 
+    left:50%; 
+    transform:translate(-50%,-50%); 
+    font-weight:bold; 
+    white-space:nowrap; 
+}
 
-/* ======================
-    RWD 手機最佳化
-====================== */
-@media (max-width: 500px) {
-    .buttons-container {
-        flex-direction:column;
-        gap:12px;
-    }
-    .buttons-container .main-btn {
-        width:100%;
-    }
-    .search-container {
-        flex-direction:column;
-        align-items:stretch;
-    }
-    .search-container button, #btnMakeupSearch {
-        width:100%;
-    }
-    #queryDate {
-        width:100%;
-    }
+/* 補打卡審批按鈕 */
+#btnApprove {
+    margin-top:20px;
+    padding:12px 20px;
+    font-size:18px;
+    font-weight:bold;
+    border-radius:10px;
+    background:linear-gradient(145deg,#8e44ad,#663399);
+    color:white;
+    display:none;
+    width:200px;
 }
 </style>
+</head>
 
 <body>
-
 <div id="userInfo">正在獲取使用者資訊...</div>
 <div id="statusInfo"></div>
 <div id="dateTime">載入中…</div>
 
-<!-- 上班/下班按鈕 -->
+<!-- 上班/下班/補打卡按鈕 -->
 <div class="buttons-container">
-    <button id="btnStart" class="main-btn">上班</button>
-    <button id="btnEnd" class="main-btn">下班</button>
+    <button id="btnStart">上班</button>
+    <button id="btnEnd">下班</button>
+    <button id="btnMakeup">補打卡</button>
 </div>
 
 <!-- 倒數動畫 -->
@@ -227,35 +183,17 @@ body {
     <div id="countdownText">打卡中...</div>
 </div>
 
-<!-- 查詢區塊及補打卡 -->
-<div class="search-wrapper">
-    <div class="search-container">
-        <input type="date" id="queryDate">
-        <button onclick="searchDateRecords()">查詢</button>
-        <button onclick="clearSearch()">清除查詢</button>
-    </div>
-    <button id="btnMakeupSearch">補打卡</button>
+<!-- 查詢區 -->
+<div class="search-container">
+    <input type="date" id="queryDate" class="search-input">
+    <button class="search-btn" onclick="searchDateRecords()">查詢</button>
+    <button class="search-btn clear-btn" onclick="clearSearch()">清除查詢</button>
 </div>
 
-<!-- 今日紀錄 -->
 <div id="todayRecords">今日打卡紀錄：</div>
 
-<!-- 補打卡審批 -->
-<button id="btnApprove"
-        style="
-            margin-top:20px;
-            padding:12px 20px;
-            font-size:18px;
-            font-weight:bold;
-            border-radius:10px;
-            background:linear-gradient(145deg,#8e44ad,#663399);
-            color:white;
-            display:none;
-            width:200px;
-        ">
-    補打卡審批
-</button>
-
+<!-- 補打卡審批按鈕 -->
+<button id="btnApprove">補打卡審批</button>
 
 
 <script>
