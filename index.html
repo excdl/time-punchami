@@ -17,7 +17,6 @@ body {
     color:#333;
 }
 
-/* 使用者資訊與狀態 */
 #dateTime { text-align:center; font-size:22px; margin-bottom:10px; }
 #userInfo { text-align:center; font-size:26px; margin-bottom:10px; }
 #statusInfo { 
@@ -45,6 +44,7 @@ button {
     font-weight:bold; 
     border:none;
     transition: all 0.2s ease;
+    white-space: nowrap; /* 避免文字換行 */
 }
 
 button:hover {
@@ -56,35 +56,24 @@ button:active {
     box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
-/* 按鈕顏色漸層 */
-#btnStart { 
-    background: linear-gradient(145deg, #3498db, #2980b9); 
-    color:white; 
-    box-shadow: 0 4px 8px rgba(52,152,219,0.3); 
-} 
-#btnEnd { 
-    background: linear-gradient(145deg, #2ecc71, #27ae60); 
-    color:white; 
-    box-shadow: 0 4px 8px rgba(46,204,113,0.3); 
-}   
-#btnMakeup { 
-    background: linear-gradient(145deg, #f39c12, #d35400); 
-    color:white; 
-    box-shadow: 0 4px 8px rgba(243,156,18,0.3); 
-} 
+/* 按鈕漸層 */
+#btnStart { background: linear-gradient(145deg, #3498db, #2980b9); color:white; box-shadow: 0 4px 8px rgba(52,152,219,0.3); } 
+#btnEnd { background: linear-gradient(145deg, #2ecc71, #27ae60); color:white; box-shadow: 0 4px 8px rgba(46,204,113,0.3); }   
+#btnMakeup { background: linear-gradient(145deg, #f39c12, #d35400); color:white; box-shadow: 0 4px 8px rgba(243,156,18,0.3); } 
 
 /* 查詢區 */
 .search-container {
     display:flex; 
-    flex-wrap:wrap; 
+    flex-wrap:nowrap; 
     justify-content:center; 
     gap:10px; 
     margin-bottom:20px;
+    align-items:center;
 }
 
 .search-input {
-    padding: 10px 15px;
-    font-size: 16px;
+    padding: 7px 10px;   /* 縮小 30% */
+    font-size: 11px;     /* 縮小 30% */
     border: 1px solid #ccc;
     border-radius: 8px;
     outline: none;
@@ -98,8 +87,8 @@ button:active {
 }
 
 .search-btn {
-    padding: 10px 20px;
-    font-size: 16px;
+    padding: 7px 14px; /* 縮小 30% */
+    font-size: 11px;   /* 縮小 30% */
     font-weight: bold;
     border-radius: 8px;
     border: none;
@@ -107,6 +96,7 @@ button:active {
     transition: all 0.2s ease;
     color: white;
     background: linear-gradient(145deg, #3498db, #2980b9);
+    white-space: nowrap; /* 避免換行 */
 }
 
 .clear-btn {
@@ -159,6 +149,7 @@ button:active {
     color:white;
     display:none;
     width:200px;
+    white-space: nowrap;
 }
 </style>
 </head>
@@ -187,7 +178,7 @@ button:active {
 <div class="search-container">
     <input type="date" id="queryDate" class="search-input">
     <button class="search-btn" onclick="searchDateRecords()">查詢</button>
-    <button class="search-btn clear-btn" onclick="clearSearch()">清除查詢</button>
+    <button class="search-btn clear-btn" onclick="clearSearch()">返回今日紀錄</button>
 </div>
 
 <div id="todayRecords">今日打卡紀錄：</div>
