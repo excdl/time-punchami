@@ -236,7 +236,7 @@ btnEnd.disabled = true;
 btnMakeup.disabled = true;
 
 window.userReady = false;
-window.isClocking = false; // 狀態鎖，避免重複打卡
+window.isClocking = false; // 防止重複打卡
 
 // ===== 更新使用者資訊 =====
 async function updateUserInfo() {
@@ -282,12 +282,8 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         return;
     }
 
-    if (window.isClocking) {
-        Swal.fire({ icon:"info", title:"正在打卡中", html:"請稍候，不要重複點擊", timer:1500, showConfirmButton:false });
-        return;
-    }
-
-    window.isClocking = true; // 鎖定
+    if (window.isClocking) return; // 防止重複點擊
+    window.isClocking = true;
 
     const ip = await getIP();
     const wrapper = document.getElementById("countdownWrapper");
@@ -312,22 +308,28 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     let targetProgress = 0.95;
 
     // ===== API 呼叫 =====
+    const params = new URLSearchParams();
+    params.append("userId", window.userId);
+    params.append("displayName", window.userName);
+    params.append("status", status);
+    params.append("ip", ip);
+    params.append("customDate", customDate);
+    params.append("customTime", customTime);
+    params.append("isMakeup", isMakeup ? "true" : "false");
+
     fetch(API_ENDPOINT, {
         method:"POST",
-        body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
+        body: params
     })
     .then(res => res.json())
     .then(data => {
-        targetProgress = 1;
+        targetProgress = 1; // 動畫完成
         showResult(data, ip, isMakeup);
     })
     .catch(err => {
         console.error(err);
         targetProgress = 1;
         showResult({ message:"失敗" }, ip, isMakeup);
-    })
-    .finally(() => {
-        setTimeout(() => { window.isClocking = false; }, 500); // 動畫結束前保持鎖定
     });
 
     // ===== 流暢圓形動畫 =====
@@ -341,7 +343,10 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
         if(progress < 0.999) requestAnimationFrame(animate);
-        else setTimeout(()=>{ wrapper.style.display = "none"; }, 200);
+        else setTimeout(()=>{ 
+            wrapper.style.display = "none"; 
+            window.isClocking = false; // 動畫結束後解除鎖定
+        }, 200);
     }
     requestAnimationFrame(animate);
 }
@@ -485,6 +490,7 @@ window.onload = async () => {
     await updateTodayRecords();
 };
 </script>
+
 
 
 
