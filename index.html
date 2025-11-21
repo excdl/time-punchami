@@ -274,7 +274,7 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡函式（立即彈窗 + 流暢圓形動畫） =====
+// ===== 打卡函式 =====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
@@ -301,31 +301,26 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     circle.style.strokeDashoffset = circumference;
 
     let progress = 0;
-    let targetProgress = 0.95; // 初始動畫進度
-    let apiCompleted = false;
 
     // ===== API 呼叫 =====
-    fetch(API_ENDPOINT, {
-        method:"POST",
-        body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
-    })
-    .then(res => res.json())
-    .then(data => {
-        apiCompleted = true;
-        targetProgress = 1; // 完成後快速到 100%
-        showResult(data, ip, isMakeup); // 立即顯示彈窗
-    })
-    .catch(err => {
-        console.error(err);
-        apiCompleted = true;
-        targetProgress = 1;
-        showResult({ message:"失敗" }, ip, isMakeup);
-    });
+    let apiData = null;
+    const apiPromise = (async () => {
+        try {
+            const res = await fetch(API_ENDPOINT, {
+                method:"POST",
+                body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
+            });
+            apiData = await res.json();
+        } catch(err) {
+            console.error(err);
+            apiData = { message:"失敗" };
+        }
+        showResult(apiData, ip, isMakeup);
+    })();
 
-    // ===== 流暢圓形動畫 =====
+    // ===== 流暢動畫 =====
     function animate() {
-        // 緩動動畫
-        progress += (targetProgress - progress) * 0.05;
+        progress = Math.min(progress + 0.03, 1);
         circle.style.strokeDashoffset = circumference * (1 - progress);
 
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -333,8 +328,8 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
         circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
-        if(progress < 0.999) requestAnimationFrame(animate);
-        else setTimeout(()=>{ wrapper.style.display = "none"; }, 200);
+        if(progress < 1) requestAnimationFrame(animate);
+        else wrapper.style.display = "none";
     }
     requestAnimationFrame(animate);
 }
@@ -447,14 +442,14 @@ btnMakeup.onclick = async () => {
                 </div>
                </div>`,
         showCancelButton:true, confirmButtonText:"完成", cancelButtonText:"取消",
-        preConfirm:()=>{
+        preConfirm:()=> {
             const d=document.getElementById("d").value;
             const t=document.getElementById("t").value;
             const s=document.getElementById("s").value;
             if(!d||!t||!s){ Swal.showValidationMessage("日期、時間、狀態皆為必填"); return false; }
             return [d.replace(/-/g,'/'), t, s];
         },
-        didOpen:()=>{
+        didOpen:()=> {
             document.querySelectorAll(".fade-item").forEach((el,i)=>{
                 setTimeout(()=>{ el.style.opacity=1; el.style.transform="translateY(0)"; }, i*120);
             });
@@ -478,6 +473,7 @@ window.onload = async () => {
     await updateTodayRecords();
 };
 </script>
+
 
 
 </body>
