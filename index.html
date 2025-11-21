@@ -236,6 +236,7 @@ btnEnd.disabled = true;
 btnMakeup.disabled = true;
 
 window.userReady = false;
+window.isClocking = false; // 狀態鎖，避免重複打卡
 
 // ===== 更新使用者資訊 =====
 async function updateUserInfo() {
@@ -274,12 +275,19 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡函式（保證寫入 + 動畫加速 + 立即彈窗） =====
+// ===== 打卡函式（立即彈窗 + 流暢圓形動畫） =====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
         return;
     }
+
+    if (window.isClocking) {
+        Swal.fire({ icon:"info", title:"正在打卡中", html:"請稍候，不要重複點擊", timer:1500, showConfirmButton:false });
+        return;
+    }
+
+    window.isClocking = true; // 鎖定
 
     const ip = await getIP();
     const wrapper = document.getElementById("countdownWrapper");
@@ -303,26 +311,28 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     let progress = 0;
     let targetProgress = 0.95;
 
-    // ===== API 呼叫 (保證寫入) =====
-    let apiData = null;
-    try {
-        const res = await fetch(API_ENDPOINT, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
-        });
-        apiData = await res.json();
-        targetProgress = 1; // 動畫快速完成
-        showResult(apiData, ip, isMakeup); // **立即彈窗**
-    } catch (err) {
+    // ===== API 呼叫 =====
+    fetch(API_ENDPOINT, {
+        method:"POST",
+        body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
+    })
+    .then(res => res.json())
+    .then(data => {
+        targetProgress = 1;
+        showResult(data, ip, isMakeup);
+    })
+    .catch(err => {
         console.error(err);
         targetProgress = 1;
         showResult({ message:"失敗" }, ip, isMakeup);
-    }
+    })
+    .finally(() => {
+        setTimeout(() => { window.isClocking = false; }, 500); // 動畫結束前保持鎖定
+    });
 
-    // ===== 圓形動畫 =====
+    // ===== 流暢圓形動畫 =====
     function animate() {
-        progress += (targetProgress - progress) * 0.1; // 加快動畫速度
+        progress += (targetProgress - progress) * 0.05;
         circle.style.strokeDashoffset = circumference * (1 - progress);
 
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -444,15 +454,17 @@ btnMakeup.onclick = async () => {
                 </div>
                </div>`,
         showCancelButton:true, confirmButtonText:"完成", cancelButtonText:"取消",
-        preConfirm:()=> {
+        preConfirm:()=>{
             const d=document.getElementById("d").value;
             const t=document.getElementById("t").value;
             const s=document.getElementById("s").value;
             if(!d||!t||!s){ Swal.showValidationMessage("日期、時間、狀態皆為必填"); return false; }
             return [d.replace(/-/g,'/'), t, s];
         },
-        didOpen:()=> {
-            document.querySelectorAll(".fade-item").forEach((el,i)=>{ setTimeout(()=>{ el.style.opacity=1; el.style.transform="translateY(0)"; }, i*120); });
+        didOpen:()=>{
+            document.querySelectorAll(".fade-item").forEach((el,i)=>{
+                setTimeout(()=>{ el.style.opacity=1; el.style.transform="translateY(0)"; }, i*120);
+            });
         }
     });
     if(isConfirmed) performClockIn(value[2], value[0], value[1], true);
@@ -473,6 +485,7 @@ window.onload = async () => {
     await updateTodayRecords();
 };
 </script>
+
 
 
 </body>
