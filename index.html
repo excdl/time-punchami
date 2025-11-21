@@ -190,7 +190,7 @@ body {
 </div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbzJwQFQX1lkmFCadMIFI9Nds8ZiEA2AF0JOA8yu38LMpUJCCKGCvUseqDEnFximhULY/exec"; 
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxvJ6BwbnlfBP6c3jBBFPSR-4nT7Oc-lIcZ7YtP93OtlsM8_X_OMw9foWnMTgOPNdL2/exec"; 
 const COMPANY_IPS = ["114.34.60.48","27.240.227.0"];
 const MANAGERS = [
     "U5362e40671c45e4c35629ff19163c414",
@@ -274,7 +274,7 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡函式 =====
+// ===== 打卡函式（慢速動畫 + 彈窗銜接） =====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
@@ -301,26 +301,11 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     circle.style.strokeDashoffset = circumference;
 
     let progress = 0;
-
-    // ===== API 呼叫 =====
     let apiData = null;
-    const apiPromise = (async () => {
-        try {
-            const res = await fetch(API_ENDPOINT, {
-                method:"POST",
-                body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
-            });
-            apiData = await res.json();
-        } catch(err) {
-            console.error(err);
-            apiData = { message:"失敗" };
-        }
-        showResult(apiData, ip, isMakeup);
-    })();
 
     // ===== 流暢動畫 =====
     function animate() {
-        progress = Math.min(progress + 0.03, 1);
+        progress = Math.min(progress + 0.01, 1); // 慢速
         circle.style.strokeDashoffset = circumference * (1 - progress);
 
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -329,39 +314,42 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
         if(progress < 1) requestAnimationFrame(animate);
-        else wrapper.style.display = "none";
     }
     requestAnimationFrame(animate);
-}
 
-// ===== 顯示打卡結果 =====
-function showResult(data, ip, isMakeup = false) {
-    if(data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
-        Swal.fire({
-            icon: "success",
-            title: isMakeup ? "🎉 補打卡成功！" : "🎉 打卡成功！",
-            html: `<strong>打卡時間：</strong> ${data.date} ${data.time}`,
-            showConfirmButton: false, 
-            timer: 4000, 
-            backdrop: "rgba(0,0,0,0.5)"
+    // ===== API 呼叫 =====
+    try {
+        const res = await fetch(API_ENDPOINT, {
+            method: "POST",
+            body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
         });
-    } else if(data.message.includes("成功")) {
-        Swal.fire({
-            icon: "warning",
-            title: `<span style="font-size:20px;color:#e67e22;">⚠ 非公司網路</span>`,
-            html: `<div style="font-size:16px;color:#3498db;font-weight:bold;margin-top:8px;">◎ 異地打卡請忽略 ◎</div>`,
-            showConfirmButton:false, 
-            backdrop:"rgba(0,0,0,0.5)"
-        });
-    } else {
-        Swal.fire({
-            icon:"error",
-            title:"😥 今日已打卡",
-            html:"重複打卡",
-            showConfirmButton:false, 
-            backdrop:"rgba(0,0,0,0.5)"
-        });
+        apiData = await res.json();
+    } catch(err) {
+        console.error(err);
+        apiData = { message:"失敗" };
     }
+
+    // ===== 顯示彈窗，並淡出圓圈 =====
+    Swal.fire({
+        icon: apiData.message.includes("成功") ? "success" : "error",
+        title: apiData.message.includes("成功") 
+               ? (isMakeup ? "🎉 補打卡成功！" : "🎉 打卡成功！") 
+               : "😥 今日已打卡",
+        html: apiData.message.includes("成功") && COMPANY_IPS.includes(ip) 
+              ? `<strong>打卡時間：</strong> ${apiData.date} ${apiData.time}` 
+              : "",
+        showConfirmButton: true,
+        backdrop: "rgba(0,0,0,0.5)"
+    }).then(() => {
+        // 彈窗關閉後淡出圓圈
+        wrapper.style.transition = "opacity 0.6s";
+        wrapper.style.opacity = 0;
+        setTimeout(() => {
+            wrapper.style.display = "none";
+            wrapper.style.opacity = 1; // 重置下一次動畫
+        }, 600);
+    });
+
     updateTodayRecords();
 }
 
