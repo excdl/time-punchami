@@ -265,7 +265,7 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡功能（動畫延長 0.2 秒）=====
+// ===== 打卡功能（動畫與彈窗分離）=====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
@@ -293,12 +293,12 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
 
     let progress = 0;
     let apiCompleted = false;
+    let resultShown = false;
     let apiData = null;
 
-    // ===== 動畫函數 =====
     function animate() {
-        if(!apiCompleted) progress = Math.min(progress + 0.017, 0.95); // 原 0.02 → 0.017，慢 0.2 秒
-        else progress = Math.min(progress + 0.07, 1);                 // 原 0.08 → 0.07，慢 0.2 秒
+        if(!apiCompleted) progress = Math.min(progress + 0.017, 0.95);
+        else progress = Math.min(progress + 0.07, 1);
 
         circle.style.strokeDashoffset = circumference * (1 - progress);
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -306,12 +306,17 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
         circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
+        // API完成即刻顯示彈窗
+        if(apiCompleted && !resultShown){
+            resultShown = true;
+            showResult(apiData, ip);
+        }
+
         if(progress < 1) requestAnimationFrame(animate);
-        else setTimeout(()=>{ wrapper.style.display="none"; showResult(apiData, ip); }, 100);
+        else setTimeout(()=>{ wrapper.style.display="none"; }, 100);
     }
     requestAnimationFrame(animate);
 
-    // ===== API 請求 =====
     try {
         const res = await fetch(API_ENDPOINT, {
             method:"POST",
