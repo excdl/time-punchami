@@ -274,7 +274,7 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡函式（動畫與結果解耦） =====
+// ===== 打卡函式（動畫與彈窗解耦） =====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
@@ -301,39 +301,41 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     circle.style.strokeDashoffset = circumference;
 
     let progress = 0;
-    let apiCompleted = false;
 
+    // ===== API 呼叫 (立即彈窗) =====
+    let apiData = null;
+    const apiPromise = (async () => {
+        try {
+            const res = await fetch(API_ENDPOINT, {
+                method:"POST",
+                body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
+            });
+            apiData = await res.json();
+        } catch(err) {
+            console.error(err);
+            apiData = { message:"失敗" };
+        }
+        // API 完成立即彈窗
+        showResult(apiData, ip, isMakeup);
+    })();
+
+    // ===== 動畫倒數 =====
     function animate() {
-        if(!apiCompleted) progress = Math.min(progress + 0.03, 0.95);
-        else progress = Math.min(progress + 0.15, 1);
-
+        progress = Math.min(progress + 0.03, 1);
         circle.style.strokeDashoffset = circumference * (1 - progress);
+
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
         const gC = Math.round(startColor.g*(1-progress) + endColor.g*progress);
         const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
         circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
-        if(progress < 1) requestAnimationFrame(animate);
-        else setTimeout(()=>{ wrapper.style.display="none"; }, 100);
+        if(progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            wrapper.style.display = "none"; // 動畫完成後隱藏倒數
+        }
     }
     requestAnimationFrame(animate);
-
-    // ===== API 呼叫 =====
-    let apiData = null;
-    try {
-        const res = await fetch(API_ENDPOINT, {
-            method:"POST",
-            body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
-        });
-        apiData = await res.json();
-    } catch(err) {
-        console.error(err);
-        apiData = { message:"失敗" };
-    }
-    apiCompleted = true;
-
-    // ===== API 完成立即顯示結果 =====
-    showResult(apiData, ip, isMakeup);
 }
 
 // ===== 顯示打卡結果 =====
@@ -367,13 +369,7 @@ function showResult(data, ip, isMakeup = false) {
     updateTodayRecords();
 }
 
-// ===== 清除搜尋 =====
-function clearSearch() {
-    document.getElementById("queryDate").value = "";
-    updateTodayRecords();
-}
-
-// ===== 取得今日紀錄 =====
+// ===== 今日紀錄 =====
 async function updateTodayRecords() {
     const now = new Date();
     const today = now.toLocaleDateString("zh-TW").replace(/\//g, "/");
@@ -394,20 +390,16 @@ async function updateTodayRecords() {
             const makeup = r.isMakeup ? "(補打卡-待審核)" : "";
             return `${r.status} ${time} ${ipLabel} ${makeup}`;
         }).join("<br>");
-
     } catch(err) {
         console.error(err);
         document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：讀取失敗";
     }
 }
 
-// ===== 查詢指定日期 =====
+// ===== 指定日期查詢 =====
 async function searchDateRecords() {
     const dateInput = document.getElementById("queryDate").value;
-    if (!dateInput) {
-        updateTodayRecords();
-        return;
-    }
+    if (!dateInput) { updateTodayRecords(); return; }
 
     const parts = dateInput.split("-");
     const dateStr = `${parts[0]}/${parts[1]}/${parts[2]}`;
@@ -417,10 +409,7 @@ async function searchDateRecords() {
         const data = await res.json();
 
         const container = document.getElementById("todayRecords");
-        if (!data.length) {
-            container.innerHTML = `${dateStr}：無紀錄`;
-            return;
-        }
+        if (!data.length) { container.innerHTML = `${dateStr}：無紀錄`; return; }
 
         container.innerHTML = `${dateStr} 打卡紀錄：<br>` + data.map(r => {
             const time = fixTimeFormat(r.time);
@@ -428,7 +417,6 @@ async function searchDateRecords() {
             const makeup = r.isMakeup ? "(補打卡-待審核)" : "";
             return `${r.status} ${time} ${ipLabel} ${makeup}`;
         }).join("<br>");
-
     } catch (err) {
         console.error(err);
         document.getElementById("todayRecords").innerHTML = `${dateStr} 查詢失敗`;
@@ -489,10 +477,6 @@ window.onload = async () => {
     await updateTodayRecords();
 };
 </script>
-
-
-
-
 
 </body>
 </html>
