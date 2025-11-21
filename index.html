@@ -197,6 +197,7 @@ const MANAGERS = [
     "U5362e40671c45e4c35629ff19163c414"
 ];
 
+// ===== 更新日期時間 =====
 function updateDateTime() {
     const now = new Date();
     document.getElementById("dateTime").textContent =
@@ -205,6 +206,7 @@ function updateDateTime() {
 setInterval(updateDateTime, 1000);
 updateDateTime();
 
+// ===== IP 快取 =====
 let cachedIP = null;
 async function getIP() {
     if (cachedIP) return cachedIP;
@@ -214,6 +216,7 @@ async function getIP() {
     } catch { return ""; }
 }
 
+// ===== 時間格式處理 =====
 function fixTimeFormat(t) {
     if (typeof t === "string" && t.includes(":") && !t.includes("T")) return t;
     if (typeof t === "string" && t.includes("T")) return new Date(t).toLocaleTimeString("zh-TW", { hour12:false });
@@ -224,16 +227,17 @@ function fixTimeFormat(t) {
     return t;
 }
 
+// ===== 按鈕 =====
 const btnStart = document.getElementById("btnStart");
 const btnEnd = document.getElementById("btnEnd");
 const btnMakeup = document.getElementById("btnMakeup");
-
 btnStart.disabled = true;
 btnEnd.disabled = true;
 btnMakeup.disabled = true;
 
 window.userReady = false;
 
+// ===== 更新使用者資訊 =====
 async function updateUserInfo() {
     await liff.init({ liffId: "2008504718-nmXP0WRV" });
     if (!liff.isLoggedIn()) await liff.login();
@@ -270,7 +274,7 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡功能（動畫與彈窗分離）=====
+// ===== 打卡函式（動畫與結果解耦） =====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
@@ -298,12 +302,10 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
 
     let progress = 0;
     let apiCompleted = false;
-    let resultShown = false;
-    let apiData = null;
 
     function animate() {
-        if(!apiCompleted) progress = Math.min(progress + 0.017, 0.95);
-        else progress = Math.min(progress + 0.07, 1);
+        if(!apiCompleted) progress = Math.min(progress + 0.03, 0.95);
+        else progress = Math.min(progress + 0.15, 1);
 
         circle.style.strokeDashoffset = circumference * (1 - progress);
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -311,16 +313,13 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
         circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
-        if(apiCompleted && !resultShown){
-            resultShown = true;
-            showResult(apiData, ip, isMakeup);
-        }
-
         if(progress < 1) requestAnimationFrame(animate);
         else setTimeout(()=>{ wrapper.style.display="none"; }, 100);
     }
     requestAnimationFrame(animate);
 
+    // ===== API 呼叫 =====
+    let apiData = null;
     try {
         const res = await fetch(API_ENDPOINT, {
             method:"POST",
@@ -332,6 +331,9 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         apiData = { message:"失敗" };
     }
     apiCompleted = true;
+
+    // ===== API 完成立即顯示結果 =====
+    showResult(apiData, ip, isMakeup);
 }
 
 // ===== 顯示打卡結果 =====
@@ -365,9 +367,10 @@ function showResult(data, ip, isMakeup = false) {
     updateTodayRecords();
 }
 
+// ===== 清除搜尋 =====
 function clearSearch() {
     document.getElementById("queryDate").value = "";
-    updateTodayRecords();  // 回到今日紀錄
+    updateTodayRecords();
 }
 
 // ===== 取得今日紀錄 =====
@@ -397,17 +400,15 @@ async function updateTodayRecords() {
         document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：讀取失敗";
     }
 }
+
 // ===== 查詢指定日期 =====
 async function searchDateRecords() {
     const dateInput = document.getElementById("queryDate").value;
-
     if (!dateInput) {
-        // 沒有選日期 → 顯示今日紀錄
         updateTodayRecords();
         return;
     }
 
-    // 轉成後端需要的 yyyy/MM/dd
     const parts = dateInput.split("-");
     const dateStr = `${parts[0]}/${parts[1]}/${parts[2]}`;
 
@@ -416,7 +417,6 @@ async function searchDateRecords() {
         const data = await res.json();
 
         const container = document.getElementById("todayRecords");
-
         if (!data.length) {
             container.innerHTML = `${dateStr}：無紀錄`;
             return;
@@ -435,9 +435,8 @@ async function searchDateRecords() {
     }
 }
 
-
 // ===== 補打卡 =====
-document.getElementById("btnMakeup").onclick = async () => {
+btnMakeup.onclick = async () => {
     const { value, isConfirmed } = await Swal.fire({
         title:"補打卡設定",
         html: `<div id="makeupForm" style="display:flex; flex-direction:column; gap:15px;">
@@ -466,22 +465,31 @@ document.getElementById("btnMakeup").onclick = async () => {
             if(!d||!t||!s){ Swal.showValidationMessage("日期、時間、狀態皆為必填"); return false; }
             return [d.replace(/-/g,'/'), t, s];
         },
-        didOpen:()=>{ document.querySelectorAll(".fade-item").forEach((el,i)=>{ setTimeout(()=>{ el.style.opacity=1; el.style.transform="translateY(0)"; }, i*120); }); }
+        didOpen:()=>{
+            document.querySelectorAll(".fade-item").forEach((el,i)=>{
+                setTimeout(()=>{ el.style.opacity=1; el.style.transform="translateY(0)"; }, i*120);
+            });
+        }
     });
     if(isConfirmed) performClockIn(value[2], value[0], value[1], true);
 };
 
+// ===== 上下班按鈕 =====
 btnStart.onclick = () => performClockIn("上班");
 btnEnd.onclick = () => performClockIn("下班");
+
+// ===== 管理員審核 =====
 document.getElementById("btnApprove").onclick = () => {
     window.location.href = "https://script.google.com/macros/s/AKfycbxaPziOwkI4ZSdM9jclAJNEEfk63B9hvzSc6Vb3occ0zOIgJBV0XYW8vMJm4KAM8HJE/exec";
 };
 
+// ===== 初始化 =====
 window.onload = async () => {
     await updateUserInfo();
     await updateTodayRecords();
 };
 </script>
+
 
 
 
