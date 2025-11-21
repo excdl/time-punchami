@@ -274,7 +274,7 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡函式（動畫與彈窗解耦） =====
+// ===== 打卡函式（立即彈窗 + 動畫獨立） =====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
@@ -302,24 +302,21 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
 
     let progress = 0;
 
-    // ===== API 呼叫 (立即彈窗) =====
-    let apiData = null;
-    const apiPromise = (async () => {
-        try {
-            const res = await fetch(API_ENDPOINT, {
-                method:"POST",
-                body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
-            });
-            apiData = await res.json();
-        } catch(err) {
-            console.error(err);
-            apiData = { message:"失敗" };
-        }
-        // API 完成立即彈窗
-        showResult(apiData, ip, isMakeup);
-    })();
+    // ===== API 呼叫 =====
+    fetch(API_ENDPOINT, {
+        method:"POST",
+        body: JSON.stringify({ userId: window.userId, displayName: window.userName, status, ip, customDate, customTime, isMakeup })
+    })
+    .then(res => res.json())
+    .then(data => {
+        showResult(data, ip, isMakeup); // API 完成立即顯示彈窗
+    })
+    .catch(err => {
+        console.error(err);
+        showResult({ message:"失敗" }, ip, isMakeup);
+    });
 
-    // ===== 動畫倒數 =====
+    // ===== 動畫倒數（獨立） =====
     function animate() {
         progress = Math.min(progress + 0.03, 1);
         circle.style.strokeDashoffset = circumference * (1 - progress);
@@ -332,7 +329,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         if(progress < 1) {
             requestAnimationFrame(animate);
         } else {
-            wrapper.style.display = "none"; // 動畫完成後隱藏倒數
+            wrapper.style.display = "none"; // 動畫結束隱藏
         }
     }
     requestAnimationFrame(animate);
