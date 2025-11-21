@@ -274,7 +274,7 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡函式（慢速動畫 + 彈窗銜接） =====
+// ===== 打卡函式（慢速動畫 + 自動關閉彈窗） =====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
@@ -301,9 +301,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     circle.style.strokeDashoffset = circumference;
 
     let progress = 0;
-    let apiData = null;
 
-    // ===== 流暢動畫 =====
     function animate() {
         progress = Math.min(progress + 0.01, 1); // 慢速
         circle.style.strokeDashoffset = circumference * (1 - progress);
@@ -317,7 +315,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     }
     requestAnimationFrame(animate);
 
-    // ===== API 呼叫 =====
+    let apiData = null;
     try {
         const res = await fetch(API_ENDPOINT, {
             method: "POST",
@@ -329,7 +327,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         apiData = { message:"失敗" };
     }
 
-    // ===== 顯示彈窗，並淡出圓圈 =====
+    // ===== 自動關閉彈窗 =====
     Swal.fire({
         icon: apiData.message.includes("成功") ? "success" : "error",
         title: apiData.message.includes("成功") 
@@ -338,15 +336,15 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         html: apiData.message.includes("成功") && COMPANY_IPS.includes(ip) 
               ? `<strong>打卡時間：</strong> ${apiData.date} ${apiData.time}` 
               : "",
-        showConfirmButton: true,
+        showConfirmButton: false,
+        timer: 2000,
         backdrop: "rgba(0,0,0,0.5)"
     }).then(() => {
-        // 彈窗關閉後淡出圓圈
         wrapper.style.transition = "opacity 0.6s";
         wrapper.style.opacity = 0;
         setTimeout(() => {
             wrapper.style.display = "none";
-            wrapper.style.opacity = 1; // 重置下一次動畫
+            wrapper.style.opacity = 1;
         }, 600);
     });
 
