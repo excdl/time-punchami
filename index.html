@@ -265,7 +265,7 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡功能（自動動畫加速）=====
+// ===== 打卡功能（動畫延長 0.2 秒）=====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
@@ -297,8 +297,8 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
 
     // ===== 動畫函數 =====
     function animate() {
-        if(!apiCompleted) progress = Math.min(progress + 0.02, 0.95);
-        else progress = Math.min(progress + 0.08, 1);
+        if(!apiCompleted) progress = Math.min(progress + 0.017, 0.95); // 原 0.02 → 0.017，慢 0.2 秒
+        else progress = Math.min(progress + 0.07, 1);                 // 原 0.08 → 0.07，慢 0.2 秒
 
         circle.style.strokeDashoffset = circumference * (1 - progress);
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -436,6 +436,7 @@ window.onload = async () => {
     await updateTodayRecords();
 };
 </script>
+
 
 
 </body>
