@@ -306,10 +306,9 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
         circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
-        // API完成即刻顯示彈窗
         if(apiCompleted && !resultShown){
             resultShown = true;
-            showResult(apiData, ip);
+            showResult(apiData, ip, isMakeup);
         }
 
         if(progress < 1) requestAnimationFrame(animate);
@@ -331,27 +330,31 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
 }
 
 // ===== 顯示打卡結果 =====
-function showResult(data, ip) {
+function showResult(data, ip, isMakeup = false) {
     if(data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
         Swal.fire({
             icon: "success",
-            title: "🎉 打卡成功！",
+            title: isMakeup ? "🎉 補打卡成功！" : "🎉 打卡成功！",
             html: `<strong>打卡時間：</strong> ${data.date} ${data.time}`,
-            showConfirmButton: false, timer: 4000, backdrop: "rgba(0,0,0,0.5)"
+            showConfirmButton: false, 
+            timer: 4000, 
+            backdrop: "rgba(0,0,0,0.5)"
         });
     } else if(data.message.includes("成功")) {
         Swal.fire({
             icon: "warning",
             title: `<span style="font-size:20px;color:#e67e22;">⚠ 非公司網路</span>`,
             html: `<div style="font-size:16px;color:#3498db;font-weight:bold;margin-top:8px;">◎ 異地打卡請忽略 ◎</div>`,
-            showConfirmButton:false, backdrop:"rgba(0,0,0,0.5)"
+            showConfirmButton:false, 
+            backdrop:"rgba(0,0,0,0.5)"
         });
     } else {
         Swal.fire({
             icon:"error",
             title:"😥 今日已打卡",
             html:"重複打卡",
-            showConfirmButton:false, backdrop:"rgba(0,0,0,0.5)"
+            showConfirmButton:false, 
+            backdrop:"rgba(0,0,0,0.5)"
         });
     }
     updateTodayRecords();
@@ -441,6 +444,7 @@ window.onload = async () => {
     await updateTodayRecords();
 };
 </script>
+
 
 
 
