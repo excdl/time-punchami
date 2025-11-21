@@ -226,8 +226,12 @@ function fixTimeFormat(t) {
 
 const btnStart = document.getElementById("btnStart");
 const btnEnd = document.getElementById("btnEnd");
+const btnMakeup = document.getElementById("btnMakeup");
+
 btnStart.disabled = true;
 btnEnd.disabled = true;
+btnMakeup.disabled = true;
+
 window.userReady = false;
 
 async function updateUserInfo() {
