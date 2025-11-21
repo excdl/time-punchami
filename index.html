@@ -189,7 +189,7 @@ body {
     <button id="btnApprove">補打卡審批</button>
 </div>
 
-<script>
+    <script>
 const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbvJ6BwbnlfBP6c3jBBFPSR-4nT7Oc-lIcZ7YtP93OtlsM8_X_OMw9foWnMTgOPNdL2/exec"; 
 const COMPANY_IPS = ["114.34.60.48","27.240.227.0"];
 const MANAGERS = [
@@ -302,7 +302,6 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
 
     let progress = 0;
     let targetProgress = 0.95; // 初始動畫進度
-    let apiCompleted = false;
 
     // ===== API 呼叫 =====
     fetch(API_ENDPOINT, {
@@ -311,20 +310,17 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     })
     .then(res => res.json())
     .then(data => {
-        apiCompleted = true;
         targetProgress = 1; // 完成後快速到 100%
         showResult(data, ip, isMakeup); // 立即顯示彈窗
     })
     .catch(err => {
         console.error(err);
-        apiCompleted = true;
         targetProgress = 1;
         showResult({ message:"失敗" }, ip, isMakeup);
     });
 
     // ===== 流暢圓形動畫 =====
     function animate() {
-        // 緩動動畫
         progress += (targetProgress - progress) * 0.05;
         circle.style.strokeDashoffset = circumference * (1 - progress);
 
@@ -370,17 +366,31 @@ function showResult(data, ip, isMakeup = false) {
     updateTodayRecords();
 }
 
-// ===== 今日紀錄 =====
+// ===== 今日紀錄（修正版） =====
 async function updateTodayRecords() {
+    if(!window.userId){
+        document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：讀取失敗（userId 尚未初始化）";
+        return;
+    }
+
     const now = new Date();
-    const today = now.toLocaleDateString("zh-TW").replace(/\//g, "/");
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth()+1).padStart(2,"0");
+    const dd = String(now.getDate()).padStart(2,"0");
+    const today = `${yyyy}-${mm}-${dd}`;
+
+    const url = `${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`;
+    console.log("Fetching today's records:", url);
 
     try {
-        const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
+        const res = await fetch(url);
+        if(!res.ok) throw new Error("HTTP Error: " + res.status);
         const data = await res.json();
+        console.log("今日紀錄 API 回傳:", data);
 
         const container = document.getElementById("todayRecords");
-        if (!data.length) {
+
+        if(!data || !Array.isArray(data) || !data.length){
             container.innerHTML = "今日打卡紀錄：無";
             return;
         }
@@ -391,8 +401,8 @@ async function updateTodayRecords() {
             const makeup = r.isMakeup ? "(補打卡-待審核)" : "";
             return `${r.status} ${time} ${ipLabel} ${makeup}`;
         }).join("<br>");
-    } catch(err) {
-        console.error(err);
+    } catch(err){
+        console.error("今日紀錄讀取失敗:", err);
         document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：讀取失敗";
     }
 }
@@ -408,7 +418,6 @@ async function searchDateRecords() {
     try {
         const res = await fetch(`${API_ENDPOINT}?action=getDate&userId=${window.userId}&date=${dateStr}`);
         const data = await res.json();
-
         const container = document.getElementById("todayRecords");
         if (!data.length) { container.innerHTML = `${dateStr}：無紀錄`; return; }
 
@@ -478,7 +487,6 @@ window.onload = async () => {
     await updateTodayRecords();
 };
 </script>
-
 
 </body>
 </html>
