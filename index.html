@@ -190,7 +190,7 @@ body {
 </div>
 
 <script>
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbxvJ6BwbnlfBP6c3jBBFPSR-4nT7Oc-lIcZ7YtP93OtlsM8_X_OMw9foWnMTgOPNdL2/exec"; 
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbvJ6BwbnlfBP6c3jBBFPSR-4nT7Oc-lIcZ7YtP93OtlsM8_X_OMw9foWnMTgOPNdL2/exec"; 
 const COMPANY_IPS = ["114.34.60.48","27.240.227.0"];
 const MANAGERS = [
     "U5362e40671c45e4c35629ff19163c414",
@@ -274,7 +274,7 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡函式（立即彈窗 + 動畫獨立） =====
+// ===== 打卡函式（立即彈窗 + 流暢圓形動畫） =====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
@@ -301,6 +301,8 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     circle.style.strokeDashoffset = circumference;
 
     let progress = 0;
+    let targetProgress = 0.95; // 初始動畫進度
+    let apiCompleted = false;
 
     // ===== API 呼叫 =====
     fetch(API_ENDPOINT, {
@@ -309,16 +311,21 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     })
     .then(res => res.json())
     .then(data => {
-        showResult(data, ip, isMakeup); // API 完成立即顯示彈窗
+        apiCompleted = true;
+        targetProgress = 1; // 完成後快速到 100%
+        showResult(data, ip, isMakeup); // 立即顯示彈窗
     })
     .catch(err => {
         console.error(err);
+        apiCompleted = true;
+        targetProgress = 1;
         showResult({ message:"失敗" }, ip, isMakeup);
     });
 
-    // ===== 動畫倒數（獨立） =====
+    // ===== 流暢圓形動畫 =====
     function animate() {
-        progress = Math.min(progress + 0.03, 1);
+        // 緩動動畫
+        progress += (targetProgress - progress) * 0.05;
         circle.style.strokeDashoffset = circumference * (1 - progress);
 
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -326,11 +333,8 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         const bC = Math.round(startColor.b*(1-progress) + endColor.b*progress);
         circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
-        if(progress < 1) {
-            requestAnimationFrame(animate);
-        } else {
-            wrapper.style.display = "none"; // 動畫結束隱藏
-        }
+        if(progress < 0.999) requestAnimationFrame(animate);
+        else setTimeout(()=>{ wrapper.style.display = "none"; }, 200);
     }
     requestAnimationFrame(animate);
 }
@@ -474,6 +478,7 @@ window.onload = async () => {
     await updateTodayRecords();
 };
 </script>
+
 
 </body>
 </html>
