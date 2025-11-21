@@ -274,7 +274,6 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡函式（慢速動畫 + 自動關閉彈窗） =====
 // ===== 打卡函式（慢速動畫 + API 回傳後立即彈窗） =====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
@@ -305,7 +304,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
 
     // ===== 動畫慢速倒數（慢 50%） =====
     function animate() {
-        progress = Math.min(progress + 0.005, 1); // 慢速再慢 50%
+        progress = Math.min(progress + 0.008, 1); // 慢速再慢 20%
         circle.style.strokeDashoffset = circumference * (1 - progress);
 
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -330,26 +329,34 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         apiData = { message:"失敗" };
     }
 
-    // ===== API 回傳後立即彈窗 =====
-    Swal.fire({
-        icon: apiData.message.includes("成功") ? "success" : "error",
-        title: apiData.message.includes("成功") 
-               ? (isMakeup ? "🎉 補打卡成功！" : "🎉 打卡成功！") 
-               : "😥 今日已打卡",
-        html: apiData.message.includes("成功") && COMPANY_IPS.includes(ip) 
-              ? `<strong>打卡時間：</strong> ${apiData.date} ${apiData.time}` 
-              : "",
-        showConfirmButton: false,
-        timer: 2000,
-        backdrop: "rgba(0,0,0,0.5)"
-    }).then(() => {
-        wrapper.style.transition = "opacity 0.6s";
-        wrapper.style.opacity = 0;
-        setTimeout(() => {
-            wrapper.style.display = "none";
-            wrapper.style.opacity = 1;
-        }, 600);
-    });
+    // ===== API 回傳後立即顯示完整彈窗 =====
+    if(apiData.message.includes("成功") && COMPANY_IPS.includes(ip)) {
+        Swal.fire({
+            icon: "success",
+            title: isMakeup ? "🎉 補打卡成功！" : "🎉 打卡成功！",
+            html: `<strong>打卡時間：</strong> ${apiData.date} ${apiData.time}`,
+            showConfirmButton: false,
+            timer: 4000,
+            backdrop: "rgba(0,0,0,0.5)"
+        });
+    } else if(apiData.message.includes("成功")) {
+        Swal.fire({
+            icon: "warning",
+            title: `<span style="font-size:20px;color:#e67e22;">⚠ 非公司網路</span>`,
+            html: `<div style="font-size:16px;color:#3498db;font-weight:bold;margin-top:8px;">◎ 異地打卡請忽略 ◎</div>`,
+            showConfirmButton: false,
+            backdrop: "rgba(0,0,0,0.5)"
+        });
+    } else {
+        Swal.fire({
+            icon: "error",
+            title: "😥 今日已打卡",
+            html: "重複打卡",
+            showConfirmButton: false,
+            backdrop: "rgba(0,0,0,0.5)"
+        });
+    }
+
 
     updateTodayRecords();
 }
