@@ -370,7 +370,10 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     // ===== 更新今日打卡紀錄 =====
     updateTodayRecords();
 }
-
+function clearSearch() {
+    document.getElementById("queryDate").value = "";
+    updateTodayRecords();  // 回到今日紀錄
+}
 // ===== 今日紀錄 =====
 async function updateTodayRecords() {
     const now = new Date();
