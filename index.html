@@ -275,6 +275,7 @@ async function updateUserInfo() {
 }
 
 // ===== 打卡函式（慢速動畫 + 自動關閉彈窗） =====
+// ===== 打卡函式（慢速動畫 + API 回傳後立即彈窗） =====
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
     if (!window.userReady) {
         Swal.fire({ icon:"info", title:"請稍候", html:"使用者資料尚未載入", timer:1500, showConfirmButton:false });
@@ -302,8 +303,9 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
 
     let progress = 0;
 
+    // ===== 動畫慢速倒數（慢 50%） =====
     function animate() {
-        progress = Math.min(progress + 0.005, 1); // 慢速
+        progress = Math.min(progress + 0.005, 1); // 慢速再慢 50%
         circle.style.strokeDashoffset = circumference * (1 - progress);
 
         const rC = Math.round(startColor.r*(1-progress) + endColor.r*progress);
@@ -315,6 +317,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     }
     requestAnimationFrame(animate);
 
+    // ===== 發送 API =====
     let apiData = null;
     try {
         const res = await fetch(API_ENDPOINT, {
@@ -327,7 +330,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         apiData = { message:"失敗" };
     }
 
-    // ===== 自動關閉彈窗 =====
+    // ===== API 回傳後立即彈窗 =====
     Swal.fire({
         icon: apiData.message.includes("成功") ? "success" : "error",
         title: apiData.message.includes("成功") 
