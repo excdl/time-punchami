@@ -275,7 +275,6 @@ async function updateUserInfo() {
     window.userReady = true;
 }
 
-// ===== 打卡函式（立即彈窗 + 流暢圓形動畫） =====
 let isClockingIn = false; // 防止重複打卡
 
 async function performClockIn(status, customDate = "", customTime = "", isMakeup = false) {
@@ -286,6 +285,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     const btnEnd = document.getElementById("btnEnd");
     const btnMakeup = document.getElementById("btnMakeup");
 
+    // 鎖定按鈕
     [btnStart, btnEnd, btnMakeup].forEach(btn => btn.disabled = true);
 
     // 取得使用者資訊
@@ -311,6 +311,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     }
 
     const ip = await getIP();
+
     const wrapper = document.getElementById("countdownWrapper");
     const circle = document.getElementById("circleProgress");
     const text = document.getElementById("countdownText");
@@ -333,26 +334,20 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
     let apiCompleted = false;
 
     function animate() {
-        // 如果 API 已完成，快速補滿動畫
-        if (apiCompleted) {
-            progress += (1 - progress) * 0.3;
-        } else {
-            progress += 0.02;
-            if (progress > 0.95) progress = 0.95; // API未完成前保留一些空間
-        }
-
+        progress += 0.02; // 固定動畫速度
         if (progress > 1) progress = 1;
-        circle.style.strokeDashoffset = circumference * (1 - progress);
 
+        circle.style.strokeDashoffset = circumference * (1 - progress);
         const rC = Math.round(startColor.r * (1 - progress) + endColor.r * progress);
         const gC = Math.round(startColor.g * (1 - progress) + endColor.g * progress);
         const bC = Math.round(startColor.b * (1 - progress) + endColor.b * progress);
         circle.style.stroke = `rgb(${rC},${gC},${bC})`;
 
-        if (progress < 1 || !apiCompleted) requestAnimationFrame(animate);
-        else {
-            // 動畫完成且 API 回應完成，0.3秒後隱藏動畫
-            setTimeout(() => wrapper.style.display = "none", 300);
+        if (progress < 1 || !apiCompleted) {
+            requestAnimationFrame(animate);
+        } else {
+            // 動畫完成且 API 回應完成，隱藏動畫
+            wrapper.style.display = "none";
         }
     }
     requestAnimationFrame(animate);
@@ -369,7 +364,7 @@ async function performClockIn(status, customDate = "", customTime = "", isMakeup
         console.error(err);
         data = { message: "失敗" };
     }
-    apiCompleted = true; // API完成，動畫加速補滿
+    apiCompleted = true;
 
     // 顯示打卡結果
     if (data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
@@ -461,6 +456,7 @@ document.getElementById("btnMakeup").onclick = async () => {
     if (isConfirmed)
         performClockIn(value[2], value[0], value[1], true);
 };
+
 
 // ===== 上下班按鈕 =====
 btnStart.onclick = () => performClockIn("上班");
