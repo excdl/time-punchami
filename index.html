@@ -306,21 +306,22 @@ function startCountdownAnimation() {
 
 
 // ===== 🔥 最佳化後的打卡功能（大幅加速）=====
+// ===== A 版本：安全預載（秒出反應） + 正確結果 =====
 async function performClockIn(status, customDate="", customTime="", isMakeup=false) {
 
-    // ----- 使用者資料快取避免重複取得 -----
+    // 1. 先確保使用者資訊
     if (!window.userId || !window.userName) {
         Swal.fire({
             icon: "info",
             title: "請稍候",
             html: "正在取得 LINE 使用者資料…",
-            timer: 1500,
+            timer: 1200,
             showConfirmButton: false
         });
         await updateUserInfo();
     }
 
-    if (!window.userId || !window.userName) {
+    if (!window.userId) {
         return Swal.fire({
             icon: "error",
             title: "無法取得 LINE 使用者資料",
@@ -329,113 +330,94 @@ async function performClockIn(status, customDate="", customTime="", isMakeup=fal
         });
     }
 
-    // 取得 IP（快取版本，幾乎瞬間完成）
-    const ip = await getIP();
-
-    // ----- 動畫設定 -----
+    // 2. 立即啟動預載動畫（心理上秒反應）
     const wrapper = document.getElementById("countdownWrapper");
-    const circle = document.getElementById("circleProgress");
-    const text = document.getElementById("countdownText");
-
     wrapper.style.display = "block";
-    text.textContent = isMakeup ? "補打卡中..." : "打卡中...";
 
-    let startColor, endColor;
-    if (isMakeup) {
-        startColor = endColor = {r:243, g:156, b:18};
-    } else if (status === "下班") {
-        startColor = {r:46, g:204, b:113};  endColor = {r:39, g:174, b:96};
-    } else {
-        startColor = {r:52, g:152, b:219};  endColor = {r:41, g:128, b:185};
-    }
+    const text = document.getElementById("countdownText");
+    text.textContent = isMakeup ? "補打卡中…" : "打卡中…";
 
+    const circle = document.getElementById("circleProgress");
     const radius = 60;
     const circumference = 2 * Math.PI * radius;
+
     circle.style.strokeDasharray = circumference;
     circle.style.strokeDashoffset = circumference;
 
     let progress = 0;
-    let lastTime = performance.now();
-    let apiCompleted = false;
-
-    // ----- 動畫（非常順） -----
-    function animate(now) {
-        const delta = now - lastTime;
-        lastTime = now;
-
-        if (!apiCompleted) {
-            progress += delta / 1300 * 0.92;
-            if (progress > 0.92) progress = 0.92;
-        } else {
-            progress += (1 - progress) * 0.25;
-            if (progress > 0.999) progress = 1;
-        }
-
+    function animate() {
+        progress += (1 - progress) * 0.14;
         circle.style.strokeDashoffset = circumference * (1 - progress);
-
-        const r = Math.round(startColor.r*(1-progress) + endColor.r*progress);
-        const g = Math.round(startColor.g*(1-progress) + endColor.g*progress);
-        const b = Math.round(startColor.b*(1-progress) + endColor.b*progress);
-        circle.style.stroke = `rgb(${r},${g},${b})`;
-
-        if (progress < 1) requestAnimationFrame(animate);
+        if (progress < 0.999) requestAnimationFrame(animate);
     }
     requestAnimationFrame(animate);
 
+    // 3. 預先取得 IP（但不等待）
+    const ipPromise = getIP();
 
-    // ----- 🚀 API 請求（加速） -----
-    let data;
+    // 4. 不提前顯示成功彈窗！只讓動畫跑（避免誤判）
+    // -------------------------------------------------
+    // 這是最關鍵的修正！避免版本 D 造成誤判
+    // -------------------------------------------------
+
+    // 5. 正式送出 API（背景進行）
+    const ip = await ipPromise;
+    let result = null;
+
     try {
         const res = await fetch(API_ENDPOINT, {
             method: "POST",
-            keepalive: true,            // **加速**
             headers: { "Content-Type": "application/json" },
+            keepalive: true,
             body: JSON.stringify({
                 userId: window.userId,
                 displayName: window.userName,
                 status, ip, customDate, customTime, isMakeup
             })
         });
-        data = await res.json();
-    } catch (e) {
-        console.error(e);
-        data = { message: "失敗" };
+        result = await res.json();
+    } catch {
+        result = { message: "失敗" };
     }
 
-    apiCompleted = true;
+    // 動畫淡出
+    setTimeout(() => { wrapper.style.display = "none"; }, 200);
 
-    setTimeout(() => { wrapper.style.display = "none"; }, 250);
+    // 6. API 回傳 → 再顯示正確的真正結果（不會誤判）
+    // ===================================================
 
-
-    // ----- 彈窗處理 -----
-    if (data.message.includes("成功") && COMPANY_IPS.includes(ip)) {
-        Swal.fire({
+    // 成功（公司 IP）
+    if (result.message.includes("成功") && COMPANY_IPS.includes(ip)) {
+        return Swal.fire({
             icon: "success",
             title: "🎉 打卡成功！",
-            html: `<strong>打卡時間：</strong> ${data.date} ${data.time}`,
-            timer: 3800,
+            html: `<strong>打卡時間：</strong> ${result.date} ${result.time}`,
+            timer: 3000,
             showConfirmButton: false
         });
     }
-    else if (data.message.includes("成功")) {
-        Swal.fire({
+
+    // 成功（非公司 IP）
+    if (result.message.includes("成功")) {
+        return Swal.fire({
             icon: "warning",
-            title: `<span style="font-size:20px;color:#e67e22;">⚠ 非公司網路，切換網路再試</span>`,
+            title: `<span style="font-size:20px;color:#e67e22;">⚠ 非公司網路</span>`,
             html: `<div style="font-size:16px;color:#3498db;font-weight:bold;">◎ 異地打卡請忽略 ◎</div>`,
             showConfirmButton: false
         });
     }
-    else {
-        Swal.fire({
-            icon: "error",
-            title: "😥 今日已打卡",
-            html: "重複打卡",
-            showConfirmButton: false
-        });
-    }
+
+    // 若 API 認定為已打卡 / 失敗（顯示真實結果）
+    Swal.fire({
+        icon: "error",
+        title: "😥 今日已打卡或失敗",
+        html: result.message || "重複打卡",
+        showConfirmButton: false
+    });
 
     updateTodayRecords();
 }
+
 
 // ===== 修正時間格式 =====
 function fixTimeFormat(t) {
