@@ -521,19 +521,20 @@ document.getElementById("btnApprove").onclick = () => {
 window.onload = async () => {
     await updateUserInfo();
 
-    // 🔹 等待 userReady = true，再更新今日紀錄
+    // 🔹 等待 userReady = true
     const waitUserReady = () => new Promise(resolve => {
         const timer = setInterval(() => {
             if (window.userReady) {
                 clearInterval(timer);
                 resolve();
             }
-        }, 100);
+        }, 50);
     });
 
-    await waitUserReady();      // 等 LIFF 初始化完成
-    updateTodayRecords();       // 🔹 現在會正確顯示今日紀錄
+    await waitUserReady();
+    updateTodayRecords(); // ✅ 現在開網頁就能顯示
 };
+
 
 </script>
 
