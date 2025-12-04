@@ -405,15 +405,17 @@ function clearSearch() {
 }
 
 // ===== 取得今日紀錄 =====
+// ===== 取得今日紀錄（升級版：Loading + 錯誤提示 + 自動刷新） =====
 async function updateTodayRecords() {
-    const now = new Date();
-    const today = now.toLocaleDateString("zh-TW").replace(/\//g, "/");
+    if (!window.userReady) return;
+
+    const container = document.getElementById("todayRecords");
+    container.innerHTML = "今日打卡紀錄：讀取中...";
 
     try {
-       const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}`);
+        const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}`);
         const data = await res.json();
 
-        const container = document.getElementById("todayRecords");
         if (!data.length) {
             container.innerHTML = "今日打卡紀錄：無";
             return;
@@ -428,9 +430,15 @@ async function updateTodayRecords() {
 
     } catch(err) {
         console.error(err);
-        document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：讀取失敗";
+        container.innerHTML = "今日打卡紀錄：讀取失敗，請稍後重整頁面";
     }
 }
+
+// ===== 自動刷新今日紀錄（每 5 分鐘） =====
+setInterval(() => {
+    if(window.userReady) updateTodayRecords();
+}, 5*60*1000); // 5 分鐘，可自行調整
+
 // ===== 查詢指定日期 =====
 async function searchDateRecords() {
     const dateInput = document.getElementById("queryDate").value;
