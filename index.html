@@ -410,7 +410,7 @@ async function updateTodayRecords() {
     const today = now.toLocaleDateString("zh-TW").replace(/\//g, "/");
 
     try {
-        const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
+       const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}`);
         const data = await res.json();
 
         const container = document.getElementById("todayRecords");
@@ -520,8 +520,21 @@ document.getElementById("btnApprove").onclick = () => {
 // ===== 初始化 =====
 window.onload = async () => {
     await updateUserInfo();
-    await updateTodayRecords();
+
+    // 🔹 等待 userReady = true，再更新今日紀錄
+    const waitUserReady = () => new Promise(resolve => {
+        const timer = setInterval(() => {
+            if (window.userReady) {
+                clearInterval(timer);
+                resolve();
+            }
+        }, 100);
+    });
+
+    await waitUserReady();      // 等 LIFF 初始化完成
+    updateTodayRecords();       // 🔹 現在會正確顯示今日紀錄
 };
+
 </script>
 
 
