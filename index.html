@@ -405,17 +405,15 @@ function clearSearch() {
 }
 
 // ===== 取得今日紀錄 =====
-// ===== 取得今日紀錄（升級版：Loading + 錯誤提示 + 自動刷新） =====
 async function updateTodayRecords() {
-    if (!window.userReady) return;
-
-    const container = document.getElementById("todayRecords");
-    container.innerHTML = "今日打卡紀錄：讀取中...";
+    const now = new Date();
+    const today = now.toLocaleDateString("zh-TW").replace(/\//g, "/");
 
     try {
-        const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}`);
+        const res = await fetch(`${API_ENDPOINT}?action=getToday&userId=${window.userId}&date=${today}`);
         const data = await res.json();
 
+        const container = document.getElementById("todayRecords");
         if (!data.length) {
             container.innerHTML = "今日打卡紀錄：無";
             return;
@@ -423,21 +421,16 @@ async function updateTodayRecords() {
 
         container.innerHTML = "今日打卡紀錄：<br>" + data.map(r => {
             const time = fixTimeFormat(r.time);
-            const ipLabel = COMPANY_IPS.includes(r.ip) ? "(成功)" : "(錯誤連線-異地請忽略)";
+            const ipLabel = COMPANY_IPS.includes(r.ip) ? "(成功)" : "(失敗-連線錯誤請重新打卡)";
             const makeup = r.isMakeup ? "(補打卡-待審核)" : "";
             return `${r.status} ${time} ${ipLabel} ${makeup}`;
         }).join("<br>");
 
     } catch(err) {
         console.error(err);
-        container.innerHTML = "今日打卡紀錄：讀取失敗，請稍後重整頁面";
+        document.getElementById("todayRecords").innerHTML = "今日打卡紀錄：讀取失敗";
     }
 }
-
-// ===== 自動刷新今日紀錄（每 5 分鐘） =====
-setInterval(() => {
-    if(window.userReady) updateTodayRecords();
-}, 5*60*1000); // 5 分鐘，可自行調整
 
 // ===== 查詢指定日期 =====
 async function searchDateRecords() {
@@ -528,19 +521,7 @@ document.getElementById("btnApprove").onclick = () => {
 // ===== 初始化 =====
 window.onload = async () => {
     await updateUserInfo();
-
-    // 🔹 等待 userReady = true
-    const waitUserReady = () => new Promise(resolve => {
-        const timer = setInterval(() => {
-            if (window.userReady) {
-                clearInterval(timer);
-                resolve();
-            }
-        }, 50);
-    });
-
-    await waitUserReady();
-    updateTodayRecords(); // ✅ 現在開網頁就能顯示
+    await updateTodayRecords();
 };
 
 
